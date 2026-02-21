@@ -36,7 +36,6 @@
       }
     ],
     "mac": {
-      "icon": "assets/icon.icns",
       "category": "public.app-category.music",
       "target": [
         {
