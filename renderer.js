@@ -11,7 +11,7 @@ class CloudMusicPlayer {
       currentFolder: null,
       currentTrack: null,
       isPlaying: false,
-      playMode: 'loop-one', // loop-one, loop-all, shuffle, order
+      playMode: 'off', // off, loop-one, loop-all, shuffle, order
       fadeEnabled: true,
       fadeInDuration: 1.0,
       fadeOutDuration: 1.0,
@@ -67,10 +67,7 @@ class CloudMusicPlayer {
       gridViewBtn: document.getElementById('gridViewBtn'),
       listViewBtn: document.getElementById('listViewBtn'),
       addMusicBtn: document.getElementById('addMusicBtn'),
-      resetPlayedBtn: document.getElementById('resetPlayedBtn'),
       settingsBtn: document.getElementById('settingsBtn'),
-      headerLoopBtn: document.getElementById('headerLoopBtn'),
-      
       // 播放器
       playerCover: document.getElementById('playerCover'),
       currentTrackName: document.getElementById('currentTrackName'),
@@ -204,12 +201,8 @@ class CloudMusicPlayer {
     
     // 头部按钮
     this.dom.addMusicBtn?.addEventListener('click', () => this.importFiles());
-    this.dom.resetPlayedBtn?.addEventListener('click', () => this.resetPlayedStatus());
     this.dom.settingsBtn?.addEventListener('click', () => this.toggleSettings());
     this.dom.searchInput?.addEventListener('input', () => this.renderTracks());
-    
-    // 头部循环模式按钮
-    this.dom.headerLoopBtn?.addEventListener('click', () => this.togglePlayMode());
     
     // 播放控制
     this.dom.playBtn?.addEventListener('click', () => this.togglePlay());
@@ -870,14 +863,30 @@ class CloudMusicPlayer {
       
       if (this.state.viewMode === 'grid') {
         el.className = `music-card ${isPlaying ? 'playing' : ''} ${isPlayed ? 'played' : ''} ${isMissing ? 'missing' : ''}`;
+        
+        // 确定状态显示
+        let statusText = '✓ 正常';
+        let statusClass = 'normal';
+        if (isMissing) {
+          statusText = '⚠️ 丢失';
+          statusClass = 'missing';
+        } else if (isPlayed) {
+          statusText = '✓ 已播放';
+          statusClass = 'played';
+        }
+        
         el.innerHTML = `
+          <div class="music-number-badge">${index + 1}</div>
           <div class="music-cover">
             🎵
             <div class="play-overlay">${isPlaying ? '⏸' : '▶'}</div>
           </div>
-          <div class="music-info">
-            <h3>${this.escapeHtml(track.name)} ${isTTS ? '<span class="voice-tag">TTS</span>' : ''}</h3>
-            <p>${this.formatDuration(track.duration)} ${isMissing ? '⚠️ 丢失' : (isPlayed ? '✓ 已播放' : '')}</p>
+          <div class="music-card-content">
+            <div class="music-card-title">${this.escapeHtml(track.name)} ${isTTS ? '<span class="voice-tag">TTS</span>' : ''}</div>
+            <div class="music-card-meta">
+              <span class="music-card-duration">${this.formatDuration(track.duration)}</span>
+              <span class="music-card-status ${statusClass}">${statusText}</span>
+            </div>
           </div>
           <div class="music-actions">
             <button class="icon-btn" data-action="rename" title="重命名">✏️</button>
@@ -1229,6 +1238,11 @@ class CloudMusicPlayer {
     }
     
     switch (this.state.playMode) {
+      case 'off':
+        // 关闭循环 - 停止播放
+        this.state.isPlaying = false;
+        this.updatePlayerUI();
+        break;
       case 'loop-one':
         this.audio.currentTime = 0;
         this.audio.play();
@@ -1238,20 +1252,28 @@ class CloudMusicPlayer {
         this.nextTrack();
         break;
       case 'order':
-        this.state.isPlaying = false;
-        this.updatePlayerUI();
+        // 顺序播放 - 如果是最后一首则停止
+        const tracks = this.getCurrentTracks();
+        const currentIdx = tracks.findIndex(t => t.id === this.state.currentTrack?.id);
+        if (currentIdx >= tracks.length - 1) {
+          this.state.isPlaying = false;
+          this.updatePlayerUI();
+        } else {
+          this.nextTrack();
+        }
         break;
     }
   }
 
   togglePlayMode() {
-    const modes = ['loop-one', 'loop-all', 'shuffle', 'order'];
+    const modes = ['off', 'loop-one', 'loop-all', 'shuffle', 'order'];
     const idx = modes.indexOf(this.state.playMode);
     this.state.playMode = modes[(idx + 1) % modes.length];
     this.updateLoopButton();
     this.saveSettings();
     
     const names = {
+      'off': '关闭循环',
       'loop-one': '单曲循环',
       'loop-all': '列表循环',
       'shuffle': '随机播放',
@@ -1266,6 +1288,7 @@ class CloudMusicPlayer {
     this.saveSettings();
     
     const names = {
+      'off': '关闭循环',
       'loop-one': '单曲循环',
       'loop-all': '列表循环',
       'shuffle': '随机播放',
@@ -1279,17 +1302,6 @@ class CloudMusicPlayer {
     this.dom.loopModeOptions?.forEach(btn => {
       btn.classList.toggle('active', btn.dataset.mode === this.state.playMode);
     });
-    
-    // 更新头部循环按钮
-    const icons = {
-      'loop-one': '🔂',
-      'loop-all': '🔁',
-      'shuffle': '🔀',
-      'order': '➡️'
-    };
-    if (this.dom.headerLoopBtn) {
-      this.dom.headerLoopBtn.textContent = icons[this.state.playMode];
-    }
   }
 
   seek(e) {

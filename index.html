@@ -44,7 +44,7 @@
       <div class="title-bar">
         <div class="title-left">
           <h1>☁️ 云褍音乐播放器</h1>
-          <span class="version">v2.0</span>
+          <span class="version">v2.0.8</span>
         </div>
         <div class="window-controls">
           <button class="window-btn minimize" id="minimizeBtn" title="最小化">−</button>
@@ -63,12 +63,10 @@
           </div>
         </div>
         <div class="header-right">
-          <button class="control-btn loop-mode-btn" id="headerLoopBtn" title="循环模式">🔂</button>
           <div class="view-modes">
             <button class="view-btn active" id="gridViewBtn" title="网格视图">⊞</button>
             <button class="view-btn" id="listViewBtn" title="列表视图">☰</button>
           </div>
-          <button class="btn btn-secondary" id="resetPlayedBtn" title="重置已播">🔄</button>
           <button class="btn btn-secondary" id="settingsBtn" title="设置">⚙️</button>
           <button class="btn btn-primary" id="addMusicBtn">+ 添加音乐</button>
         </div>
@@ -115,7 +113,8 @@
           <button class="control-btn" id="stopBtn" title="停止">⏹</button>
         </div>
         <div class="loop-modes">
-          <button class="loop-mode-option active" data-mode="loop-one" title="单曲循环">🔂</button>
+          <button class="loop-mode-option active" data-mode="off" title="关闭循环">✕</button>
+          <button class="loop-mode-option" data-mode="loop-one" title="单曲循环">🔂</button>
           <button class="loop-mode-option" data-mode="loop-all" title="列表循环">🔁</button>
           <button class="loop-mode-option" data-mode="shuffle" title="随机播放">🔀</button>
           <button class="loop-mode-option" data-mode="order" title="顺序播放">➡️</button>
@@ -185,6 +184,7 @@
         <div class="setting-row">
           <label>默认循环模式</label>
           <select class="setting-select" id="defaultLoopMode">
+            <option value="off">关闭循环</option>
             <option value="loop-one">单曲循环</option>
             <option value="loop-all">列表循环</option>
             <option value="shuffle">随机播放</option>
