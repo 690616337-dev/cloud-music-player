@@ -34,7 +34,7 @@ body {
 /* 主容器 */
 .container {
   display: flex;
-  height: 100vh;
+  height: calc(100vh - 100px);
 }
 
 /* ========== 侧边栏 ========== */
@@ -282,6 +282,27 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.loop-mode-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: rgba(0, 212, 255, 0.2);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.loop-mode-btn:hover {
+  background: rgba(0, 212, 255, 0.3);
+  transform: scale(1.05);
 }
 
 .view-modes {
@@ -532,6 +553,10 @@ body {
 
 /* ========== 底部播放器 ========== */
 .player-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   background: rgba(15, 12, 41, 0.98);
   border-top: 2px solid rgba(0, 212, 255, 0.3);
   z-index: 100;

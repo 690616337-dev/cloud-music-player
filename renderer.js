@@ -69,6 +69,7 @@ class CloudMusicPlayer {
       addMusicBtn: document.getElementById('addMusicBtn'),
       resetPlayedBtn: document.getElementById('resetPlayedBtn'),
       settingsBtn: document.getElementById('settingsBtn'),
+      headerLoopBtn: document.getElementById('headerLoopBtn'),
       
       // 播放器
       playerCover: document.getElementById('playerCover'),
@@ -205,6 +206,9 @@ class CloudMusicPlayer {
     this.dom.resetPlayedBtn?.addEventListener('click', () => this.resetPlayedStatus());
     this.dom.settingsBtn?.addEventListener('click', () => this.toggleSettings());
     this.dom.searchInput?.addEventListener('input', () => this.renderTracks());
+    
+    // 头部循环模式按钮
+    this.dom.headerLoopBtn?.addEventListener('click', () => this.togglePlayMode());
     
     // 播放控制
     this.dom.playBtn?.addEventListener('click', () => this.togglePlay());
@@ -597,6 +601,7 @@ class CloudMusicPlayer {
       
       div.addEventListener('drop', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         const draggedId = e.dataTransfer.getData('text/plain');
         if (draggedId === folder.id) {
           div.classList.remove('drag-over');
@@ -914,14 +919,19 @@ class CloudMusicPlayer {
         const draggedId = e.dataTransfer.getData('text/plain');
         if (draggedId === track.id) return;
         
-        const allTracks = this.state.currentFolder.tracks.sort((a, b) => (a.order || 0) - (b.order || 0));
+        // 创建副本进行排序，避免修改原数组引用
+        const allTracks = [...this.state.currentFolder.tracks].sort((a, b) => (a.order || 0) - (b.order || 0));
         const fromIdx = allTracks.findIndex(t => t.id === draggedId);
         const toIdx = allTracks.findIndex(t => t.id === track.id);
         
         if (fromIdx !== -1 && toIdx !== -1) {
           const [removed] = allTracks.splice(fromIdx, 1);
           allTracks.splice(toIdx, 0, removed);
-          allTracks.forEach((t, i) => t.order = i);
+          // 更新原数组中的order
+          allTracks.forEach((t, i) => {
+            const originalTrack = this.state.currentFolder.tracks.find(ot => ot.id === t.id);
+            if (originalTrack) originalTrack.order = i;
+          });
           this.saveData();
           this.renderTracks();
         }
@@ -1240,6 +1250,9 @@ class CloudMusicPlayer {
     if (this.dom.loopBtn) {
       this.dom.loopBtn.textContent = icons[this.state.playMode];
     }
+    if (this.dom.headerLoopBtn) {
+      this.dom.headerLoopBtn.textContent = icons[this.state.playMode];
+    }
   }
 
   seek(e) {
@@ -1491,17 +1504,15 @@ class CloudMusicPlayer {
       return;
     }
     
-    const timestamp = new Date().toLocaleString('zh-CN', {
-      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
-    }).replace(/[\/:\s]/g, '');
-    
+    // 使用文本前20字作为文件名
+    const textPreview = text.substring(0, 20).replace(/[\\/:*?"<>|]/g, '_');
     const voices = window.speechSynthesis.getVoices();
     const selectedVoice = voices.find(v => v.name === voiceName);
     const isFemale = voiceName.toLowerCase().includes('female') || 
                      voiceName.toLowerCase().includes('xiaoxiao') ||
                      voiceName.toLowerCase().includes('女');
     const genderTag = isFemale ? '女声' : '男声';
-    const fileName = `播报_${genderTag}_${timestamp}`;
+    const fileName = `${textPreview}_${genderTag}`;
     
     const track = {
       id: this.generateId(),

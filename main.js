@@ -71,13 +71,13 @@ class CloudMusicPlayer {
       ...(isMac ? [{
         label: app.name,
         submenu: [
-          { role: 'about' },
+          { label: `关于 ${app.name}`, role: 'about' },
           { type: 'separator' },
-          { role: 'hide' },
-          { role: 'hideothers' },
-          { role: 'unhide' },
+          { label: '隐藏', role: 'hide' },
+          { label: '隐藏其他', role: 'hideothers' },
+          { label: '显示全部', role: 'unhide' },
           { type: 'separator' },
-          { role: 'quit' }
+          { label: '退出', role: 'quit' }
         ]
       }] : []),
       {
@@ -107,16 +107,16 @@ class CloudMusicPlayer {
       {
         label: '编辑',
         submenu: [
-          { role: 'undo' },
-          { role: 'redo' },
+          { label: '撤销', role: 'undo' },
+          { label: '重做', role: 'redo' },
           { type: 'separator' },
-          { role: 'cut' },
-          { role: 'copy' },
-          { role: 'paste' },
+          { label: '剪切', role: 'cut' },
+          { label: '复制', role: 'copy' },
+          { label: '粘贴', role: 'paste' },
           ...(isMac ? [
-            { role: 'pasteAndMatchStyle' },
-            { role: 'delete' },
-            { role: 'selectAll' },
+            { label: '粘贴并匹配样式', role: 'pasteAndMatchStyle' },
+            { label: '删除', role: 'delete' },
+            { label: '全选', role: 'selectAll' },
             { type: 'separator' },
             {
               label: '语音播报',
@@ -124,9 +124,9 @@ class CloudMusicPlayer {
               click: () => this.mainWindow?.webContents.send('menu-tts')
             }
           ] : [
-            { role: 'delete' },
+            { label: '删除', role: 'delete' },
             { type: 'separator' },
-            { role: 'selectAll' }
+            { label: '全选', role: 'selectAll' }
           ])
         ]
       },
@@ -181,27 +181,27 @@ class CloudMusicPlayer {
             click: () => this.mainWindow?.webContents.send('menu-view-list')
           },
           { type: 'separator' },
-          { role: 'reload' },
-          { role: 'forceReload' },
-          { role: 'toggleDevTools' },
+          { label: '重新加载', role: 'reload' },
+          { label: '强制重新加载', role: 'forceReload' },
+          { label: '切换开发者工具', role: 'toggleDevTools' },
           { type: 'separator' },
-          { role: 'actualSize' },
-          { role: 'zoomIn' },
-          { role: 'zoomOut' },
+          { label: '实际大小', role: 'actualSize' },
+          { label: '放大', role: 'zoomIn' },
+          { label: '缩小', role: 'zoomOut' },
           { type: 'separator' },
-          { role: 'togglefullscreen' }
+          { label: '切换全屏', role: 'togglefullscreen' }
         ]
       },
       {
         label: '窗口',
         submenu: [
-          { role: 'minimize' },
-          { role: 'close' },
+          { label: '最小化', role: 'minimize' },
+          { label: '关闭', role: 'close' },
           ...(isMac ? [
             { type: 'separator' },
-            { role: 'front' },
+            { label: '前置全部窗口', role: 'front' },
             { type: 'separator' },
-            { role: 'window' }
+            { label: '窗口', role: 'window' }
           ] : [])
         ]
       },
