@@ -195,6 +195,17 @@ body {
   border-radius: 4px;
 }
 
+/* 顶部窗口控制按钮 */
+.window-controls-top {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+  z-index: 10000;
+  -webkit-app-region: no-drag;
+}
+
 .window-controls {
   display: flex;
   gap: 8px;
@@ -368,14 +379,16 @@ body {
   border-color: rgba(100, 100, 100, 0.4);
 }
 
-.music-card.played .music-title,
-.music-card.played .music-info h3 {
+.music-card.played .music-card-title {
   color: #888;
   text-decoration: line-through;
 }
 
-.music-card.played .music-meta,
-.music-card.played .music-info p {
+.music-card.played .music-card-meta {
+  color: #666;
+}
+
+.music-card.played .music-card-status {
   color: #666;
 }
 
