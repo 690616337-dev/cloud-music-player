@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; media-src blob:; img-src 'self' data: blob:;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>云褍音乐播放器</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>📁 音乐分类</h2>
+      </div>
+      
+      <div class="sidebar-actions">
+        <button class="btn btn-primary" id="addFolderBtn">
+          <span>+</span> 新建分类
+        </button>
+        <button class="btn btn-secondary" id="ttsBtn" title="语音播报">
+          🔊 TTS
+        </button>
+      </div>
+      
+      <div class="folders-list" id="foldersList">
+        <!-- 文件夹列表动态生成 -->
+      </div>
+      
+      <div class="sidebar-footer">
+        <div class="stats">
+          <span>📁 <span id="folderCount">0</span> 分类</span>
+          <span>🎵 <span id="totalTracks">0</span> 音乐</span>
+        </div>
+        <button class="btn btn-text" id="checkValidBtn">⚡ 检查文件</button>
+        <button class="btn btn-text" id="cleanInvalidBtn">🧹 清理失效</button>
+      </div>
+    </aside>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+      <!-- 标题栏 -->
+      <div class="title-bar">
+        <div class="title-left">
+          <h1>☁️ 云褍音乐播放器</h1>
+          <span class="version">v2.0</span>
+        </div>
+        <div class="window-controls">
+          <button class="window-btn minimize" id="minimizeBtn" title="最小化">−</button>
+          <button class="window-btn maximize" id="maximizeBtn" title="最大化">□</button>
+          <button class="window-btn close" id="closeBtn" title="关闭">×</button>
+        </div>
+      </div>
+
+      <!-- 内容头部 -->
+      <header class="content-header">
+        <div class="header-left">
+          <h2 class="content-title" id="currentFolderName">全部音乐</h2>
+          <div class="search-box">
+            <input type="text" id="searchInput" placeholder="搜索歌曲...">
+            <span class="search-icon">🔍</span>
+          </div>
+        </div>
+        <div class="header-right">
+          <div class="view-modes">
+            <button class="view-btn active" id="gridViewBtn" title="网格视图">⊞</button>
+            <button class="view-btn" id="listViewBtn" title="列表视图">☰</button>
+          </div>
+          <button class="btn btn-secondary" id="resetPlayedBtn" title="重置已播">🔄</button>
+          <button class="btn btn-secondary" id="settingsBtn" title="设置">⚙️</button>
+          <button class="btn btn-primary" id="addMusicBtn">+ 添加音乐</button>
+        </div>
+      </header>
+
+      <!-- 音乐列表 -->
+      <div class="music-container" id="musicContainer">
+        <div class="empty-state">
+          <div class="empty-icon">🎵</div>
+          <div class="empty-text">暂无音乐文件</div>
+          <div class="empty-hint">拖拽音频文件到此处添加</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- 底部播放器 -->
+  <footer class="player-bar">
+    <!-- 波形可视化区域 -->
+    <div class="waveform-container" id="waveformContainer">
+      <canvas id="waveformCanvas"></canvas>
+      <div class="waveform-overlay">
+        <span class="visualizer-hint">音频可视化</span>
+      </div>
+    </div>
+
+    <div class="player-controls-wrapper">
+      <div class="player-info">
+        <div class="player-cover" id="playerCover">
+          <span class="cover-icon">🎵</span>
+          <div class="playing-indicator" id="playingIndicator"></div>
+        </div>
+        <div class="player-meta">
+          <h4 id="currentTrackName">未播放</h4>
+          <p id="currentTrackFolder">选择音乐开始播放</p>
+        </div>
+      </div>
+
+      <div class="player-controls">
+        <div class="control-btns">
+          <button class="control-btn" id="loopBtn" title="循环模式">🔂</button>
+          <button class="control-btn" id="prevBtn" title="上一首">⏮</button>
+          <button class="control-btn play-btn" id="playBtn" title="播放/暂停">▶</button>
+          <button class="control-btn" id="nextBtn" title="下一首">⏭</button>
+          <button class="control-btn" id="stopBtn" title="停止">⏹</button>
+        </div>
+        <div class="progress-container">
+          <span class="time-display" id="currentTime">0:00</span>
+          <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+            <div class="progress-handle" id="progressHandle"></div>
+          </div>
+          <span class="time-display" id="totalTime">0:00</span>
+        </div>
+      </div>
+
+      <div class="player-extras">
+        <div class="fade-controls">
+          <div class="fade-input-group">
+            <label>淡入</label>
+            <input type="number" id="fadeInInput" value="1" min="0" max="5" step="0.5">
+            <span>s</span>
+          </div>
+          <div class="fade-input-group">
+            <label>淡出</label>
+            <input type="number" id="fadeOutInput" value="1" min="0" max="5" step="0.5">
+            <span>s</span>
+          </div>
+        </div>
+        <div class="volume-section">
+          <span class="volume-icon" id="volumeIcon">🔊</span>
+          <div class="volume-wrapper">
+            <div class="volume-bar" id="volumeBar">
+              <div class="volume-fill" id="volumeFill"></div>
+            </div>
+            <span class="volume-value" id="volumeValue">80%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- 设置面板 -->
+  <div class="settings-panel" id="settingsPanel">
+    <div class="settings-header">
+      <h3>⚙️ 设置</h3>
+      <button class="close-settings" id="closeSettingsBtn">×</button>
+    </div>
+    <div class="settings-content">
+      <div class="setting-group">
+        <label class="setting-label">主题颜色</label>
+        <div class="theme-options">
+          <div class="theme-option cyan active" data-theme="cyan" title="青色"></div>
+          <div class="theme-option purple" data-theme="purple" title="紫色"></div>
+          <div class="theme-option orange" data-theme="orange" title="橙色"></div>
+          <div class="theme-option green" data-theme="green" title="绿色"></div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <label class="setting-label">播放设置</label>
+        <div class="setting-row">
+          <label class="checkbox-label">
+            <input type="checkbox" id="autoPlayCheck" checked>
+            <span>自动播放下一首</span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <label>默认循环模式</label>
+          <select class="setting-select" id="defaultLoopMode">
+            <option value="loop-one">单曲循环</option>
+            <option value="loop-all">列表循环</option>
+            <option value="shuffle">随机播放</option>
+            <option value="order">顺序播放</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <label class="setting-label">数据管理</label>
+        <button class="btn btn-secondary" id="exportBtn" style="width: 100%; margin-bottom: 10px;">
+          📥 导出数据备份
+        </button>
+        <button class="btn btn-secondary" id="importBtn" style="width: 100%; margin-bottom: 10px;">
+          📤 导入数据备份
+        </button>
+        <button class="btn btn-danger" id="initAppBtn" style="width: 100%;">
+          ⚠️ 恢复初始设置
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TTS面板 -->
+  <div class="modal-overlay" id="ttsOverlay"></div>
+  <div class="tts-panel" id="ttsPanel">
+    <div class="tts-header">
+      <h3>🔊 语音播报</h3>
+      <button class="close-btn" id="closeTtsBtn">×</button>
+    </div>
+    <div class="tts-content">
+      <textarea class="tts-input" id="ttsText" placeholder="请输入播报内容..."></textarea>
+      <div class="tts-options">
+        <div class="tts-option">
+          <label>选择人声</label>
+          <select id="voiceSelect">
+            <option value="">正在加载语音列表...</option>
+          </select>
+        </div>
+        <div class="tts-info">
+          💡 使用系统人声进行语音合成，无需网络，完全免费
+        </div>
+      </div>
+      <div class="tts-buttons">
+        <button class="btn btn-secondary" id="previewTtsBtn">🔊 试听</button>
+        <button class="btn btn-primary" id="saveTtsBtn">💾 生成并保存</button>
+      </div>
+      <div class="tts-status" id="ttsStatus"></div>
+    </div>
+  </div>
+
+  <!-- 重命名模态框 -->
+  <div class="modal-overlay" id="renameOverlay"></div>
+  <div class="modal" id="renameModal">
+    <div class="modal-content">
+      <h3 class="modal-title" id="modalTitle">重命名</h3>
+      <input type="text" class="modal-input" id="renameInput" placeholder="输入新名称">
+      <div class="modal-btns">
+        <button class="btn btn-secondary" id="cancelRenameBtn">取消</button>
+        <button class="btn btn-primary" id="confirmRenameBtn">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 拖拽上传区域 -->
+  <div class="drop-zone" id="dropZone">
+    <div class="drop-zone-content">
+      <div class="drop-zone-icon">📁</div>
+      <div class="drop-zone-text">释放以上传音乐文件</div>
+    </div>
+  </div>
+
+  <!-- Toast提示 -->
+  <div class="toast" id="toast"></div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
