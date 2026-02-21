@@ -79,11 +79,11 @@ class CloudMusicPlayer {
       prevBtn: document.getElementById('prevBtn'),
       nextBtn: document.getElementById('nextBtn'),
       stopBtn: document.getElementById('stopBtn'),
-      loopBtn: document.getElementById('loopBtn'),
       progressBar: document.getElementById('progressBar'),
       progressFill: document.getElementById('progressFill'),
       currentTime: document.getElementById('currentTime'),
       totalTime: document.getElementById('totalTime'),
+      remainingTime: document.getElementById('remainingTime'),
       volumeBar: document.getElementById('volumeBar'),
       volumeFill: document.getElementById('volumeFill'),
       volumeValue: document.getElementById('volumeValue'),
@@ -92,6 +92,7 @@ class CloudMusicPlayer {
       fadeOutInput: document.getElementById('fadeOutInput'),
       waveformContainer: document.getElementById('waveformContainer'),
       waveformCanvas: document.getElementById('waveformCanvas'),
+      loopModeOptions: document.querySelectorAll('.loop-mode-option'),
       
       // 窗口控制
       minimizeBtn: document.getElementById('minimizeBtn'),
@@ -215,7 +216,11 @@ class CloudMusicPlayer {
     this.dom.prevBtn?.addEventListener('click', () => this.previousTrack());
     this.dom.nextBtn?.addEventListener('click', () => this.nextTrack());
     this.dom.stopBtn?.addEventListener('click', () => this.stop());
-    this.dom.loopBtn?.addEventListener('click', () => this.togglePlayMode());
+    
+    // 循环模式按钮
+    this.dom.loopModeOptions?.forEach(btn => {
+      btn.addEventListener('click', () => this.setPlayMode(btn.dataset.mode));
+    });
     
     // 进度条
     let isDraggingProgress = false;
@@ -339,6 +344,12 @@ class CloudMusicPlayer {
       e.preventDefault();
       e.stopPropagation();
       
+      // 检查是否是文件夹拖拽（从侧边栏拖拽文件夹）
+      const draggedFolderId = e.dataTransfer.getData('text/plain');
+      if (draggedFolderId && this.state.folders.find(f => f.id === draggedFolderId)) {
+        return; // 文件夹拖拽，不显示上传区域
+      }
+      
       if (this.dragTimer) clearTimeout(this.dragTimer);
       this.dragCounter++;
       
@@ -370,6 +381,12 @@ class CloudMusicPlayer {
       this.dragCounter = 0;
       if (this.dragTimer) clearTimeout(this.dragTimer);
       this.dom.dropZone?.classList.remove('active');
+      
+      // 检查是否是文件夹拖拽（从侧边栏拖拽文件夹）
+      const draggedFolderId = e.dataTransfer.getData('text/plain');
+      if (draggedFolderId && this.state.folders.find(f => f.id === draggedFolderId)) {
+        return; // 文件夹拖拽，不处理上传
+      }
       
       if (!this.state.currentFolder) {
         this.showToast('请先选择分类', 'error');
@@ -550,10 +567,13 @@ class CloudMusicPlayer {
       div.draggable = true;
       div.dataset.id = folder.id;
       
+      // 计算总时长
+      const totalDuration = folder.tracks?.reduce((sum, t) => sum + (t.duration || 0), 0) || 0;
+      
       div.innerHTML = `
         <span class="folder-icon">${isSystem ? '🎙️' : '📁'}</span>
         <span class="folder-name">${this.escapeHtml(folder.name)}</span>
-        <span class="folder-count">${trackCount}${missingCount > 0 ? ` ⚠️${missingCount}` : ''}</span>
+        <span class="folder-count">${trackCount}首 · ${this.formatDuration(totalDuration)}</span>
         <div class="folder-actions">
           <button class="icon-btn" data-action="rename" title="重命名">✏️</button>
           ${!isSystem ? '<button class="icon-btn danger" data-action="delete" title="删除">🗑️</button>' : ''}
@@ -1240,16 +1260,33 @@ class CloudMusicPlayer {
     this.showToast(`🎵 ${names[this.state.playMode]}`);
   }
 
+  setPlayMode(mode) {
+    this.state.playMode = mode;
+    this.updateLoopButton();
+    this.saveSettings();
+    
+    const names = {
+      'loop-one': '单曲循环',
+      'loop-all': '列表循环',
+      'shuffle': '随机播放',
+      'order': '顺序播放'
+    };
+    this.showToast(`🎵 ${names[mode]}`);
+  }
+
   updateLoopButton() {
+    // 更新循环模式按钮状态
+    this.dom.loopModeOptions?.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === this.state.playMode);
+    });
+    
+    // 更新头部循环按钮
     const icons = {
       'loop-one': '🔂',
       'loop-all': '🔁',
       'shuffle': '🔀',
       'order': '➡️'
     };
-    if (this.dom.loopBtn) {
-      this.dom.loopBtn.textContent = icons[this.state.playMode];
-    }
     if (this.dom.headerLoopBtn) {
       this.dom.headerLoopBtn.textContent = icons[this.state.playMode];
     }
@@ -1268,6 +1305,12 @@ class CloudMusicPlayer {
     const percent = (this.audio.currentTime / this.audio.duration) * 100;
     this.dom.progressFill.style.width = `${percent}%`;
     this.dom.currentTime.textContent = this.formatTime(this.audio.currentTime);
+    
+    // 更新剩余时间
+    const remaining = this.audio.duration - this.audio.currentTime;
+    if (this.dom.remainingTime) {
+      this.dom.remainingTime.textContent = `-${this.formatTime(remaining)}`;
+    }
   }
 
   updateTimeDisplay() {

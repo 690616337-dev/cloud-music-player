@@ -62,31 +62,36 @@ body {
   margin-bottom: 16px;
 }
 
+/* ========== 文件夹网格布局 ========== */
 .folders-list {
   flex: 1;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 8px 4px;
 }
 
 .folder-item {
-  padding: 12px 15px;
+  padding: 12px 10px;
   background: var(--bg-card);
   border-radius: var(--radius);
   cursor: pointer;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   transition: var(--transition);
   border: 2px solid transparent;
   position: relative;
+  height: 100px;
+  min-width: 0;
 }
 
 .folder-item:hover {
   background: rgba(0, 212, 255, 0.1);
   border-color: rgba(0, 212, 255, 0.3);
-  transform: translateX(4px);
+  transform: translateY(-2px);
 }
 
 .folder-item.active {
@@ -99,26 +104,28 @@ body {
 }
 
 .folder-item.drag-over {
-  border-top-color: var(--primary);
-  transform: translateY(2px);
+  border-color: var(--primary);
+  transform: scale(1.05);
 }
 
 .folder-icon {
-  font-size: 16px;
+  font-size: 24px;
 }
 
 .folder-name {
-  flex: 1;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  width: 100%;
+  text-align: center;
+  font-size: 13px;
 }
 
 .folder-count {
-  font-size: 11px;
+  font-size: 10px;
   background: rgba(255, 255, 255, 0.1);
-  padding: 2px 8px;
+  padding: 2px 6px;
   border-radius: 10px;
   color: var(--text-muted);
 }
@@ -126,6 +133,9 @@ body {
 .folder-actions {
   display: none;
   gap: 4px;
+  position: absolute;
+  top: 4px;
+  right: 4px;
 }
 
 .folder-item:hover .folder-actions {
@@ -693,6 +703,41 @@ body {
   gap: 16px;
 }
 
+.loop-modes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 8px;
+  border-radius: 20px;
+  margin-top: 8px;
+}
+
+.loop-mode-option {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.loop-mode-option:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.loop-mode-option.active {
+  background: rgba(0, 212, 255, 0.2);
+  color: var(--primary);
+}
+
 .control-btn {
   width: 40px;
   height: 40px;
@@ -735,6 +780,11 @@ body {
   font-size: 12px;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+}
+
+.progress-container .remaining-time {
+  color: var(--primary);
+  opacity: 0.8;
 }
 
 .progress-bar {
@@ -828,7 +878,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  width: 100px;
+  width: 150px;
 }
 
 .volume-bar {
@@ -1409,6 +1459,12 @@ input[type="checkbox"] {
 }
 
 /* ========== 响应式 ========== */
+@media (max-width: 1400px) {
+  .folders-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 @media (max-width: 1200px) {
   .player-controls-wrapper {
     flex-direction: column;
@@ -1427,6 +1483,10 @@ input[type="checkbox"] {
     max-width: none;
     width: 100%;
   }
+  
+  .folders-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 900px) {
@@ -1443,5 +1503,15 @@ input[type="checkbox"] {
   .header-right {
     width: 100%;
     justify-content: space-between;
+  }
+  
+  .folders-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .folders-list {
+    grid-template-columns: 1fr;
   }
 }

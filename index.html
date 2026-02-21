@@ -109,11 +109,16 @@
 
       <div class="player-controls">
         <div class="control-btns">
-          <button class="control-btn" id="loopBtn" title="循环模式">🔂</button>
           <button class="control-btn" id="prevBtn" title="上一首">⏮</button>
           <button class="control-btn play-btn" id="playBtn" title="播放/暂停">▶</button>
           <button class="control-btn" id="nextBtn" title="下一首">⏭</button>
           <button class="control-btn" id="stopBtn" title="停止">⏹</button>
+        </div>
+        <div class="loop-modes">
+          <button class="loop-mode-option active" data-mode="loop-one" title="单曲循环">🔂</button>
+          <button class="loop-mode-option" data-mode="loop-all" title="列表循环">🔁</button>
+          <button class="loop-mode-option" data-mode="shuffle" title="随机播放">🔀</button>
+          <button class="loop-mode-option" data-mode="order" title="顺序播放">➡️</button>
         </div>
         <div class="progress-container">
           <span class="time-display" id="currentTime">0:00</span>
@@ -122,6 +127,7 @@
             <div class="progress-handle" id="progressHandle"></div>
           </div>
           <span class="time-display" id="totalTime">0:00</span>
+          <span class="time-display remaining-time" id="remainingTime">-0:00</span>
         </div>
       </div>
 
@@ -144,8 +150,8 @@
             <div class="volume-bar" id="volumeBar">
               <div class="volume-fill" id="volumeFill"></div>
             </div>
-            <span class="volume-value" id="volumeValue">80%</span>
           </div>
+          <span class="volume-value" id="volumeValue">80%</span>
         </div>
       </div>
     </div>
