@@ -1224,7 +1224,7 @@ class CloudMusicPlayer {
     
     const idx = tracks.findIndex(t => t.id === this.state.currentTrack?.id);
     const prevIdx = idx <= 0 ? tracks.length - 1 : idx - 1;
-    this.playTrack(tracks[prevIdx].id);
+    this.fadeOutAndPlay(tracks[prevIdx].id);
   }
 
   nextTrack() {
@@ -1238,7 +1238,33 @@ class CloudMusicPlayer {
       const idx = tracks.findIndex(t => t.id === this.state.currentTrack?.id);
       nextIdx = idx >= tracks.length - 1 ? 0 : idx + 1;
     }
-    this.playTrack(tracks[nextIdx].id);
+    this.fadeOutAndPlay(tracks[nextIdx].id);
+  }
+
+  fadeOutAndPlay(trackId) {
+    // 淡出当前音乐，然后播放下一首
+    if (!this.state.isPlaying || !this.gainNode) {
+      this.playTrack(trackId);
+      return;
+    }
+
+    const fadeOut = parseFloat(this.state.fadeOutDuration) || 1;
+    const currentVol = this.gainNode.gain.value;
+    const steps = 20;
+    const stepTime = (fadeOut * 1000) / steps;
+    const stepVol = currentVol / steps;
+    let step = 0;
+
+    const fadeInterval = setInterval(() => {
+      step++;
+      if (step >= steps) {
+        clearInterval(fadeInterval);
+        this.gainNode.gain.value = currentVol;
+        this.playTrack(trackId);
+      } else {
+        this.gainNode.gain.value = Math.max(0, currentVol - (stepVol * step));
+      }
+    }, stepTime);
   }
 
   handleTrackEnded() {
