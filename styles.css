@@ -384,13 +384,18 @@ body {
 }
 
 .music-card.played {
-  opacity: 0.5;
-  background: rgba(100, 100, 100, 0.15);
+  opacity: 0.6;
+  background: rgba(100, 100, 100, 0.25);
+  border-color: rgba(100, 100, 100, 0.4);
 }
 
 .music-card.played .music-title {
-  color: var(--text-muted);
+  color: #666;
   text-decoration: line-through;
+}
+
+.music-card.played .music-meta {
+  color: #555;
 }
 
 .music-card.missing {
