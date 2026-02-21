@@ -41,10 +41,6 @@
         {
           "target": "dmg",
           "arch": ["x64", "arm64"]
-        },
-        {
-          "target": "zip",
-          "arch": ["x64", "arm64"]
         }
       ]
     },
@@ -70,13 +66,10 @@
     },
     "linux": {
       "category": "AudioVideo",
+      "maintainer": "云褍音乐 <support@cloudmusic.player>",
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64"]
-        },
-        {
-          "target": "deb",
           "arch": ["x64"]
         }
       ]
@@ -100,6 +93,9 @@
     "electron",
     "本地音乐"
   ],
-  "author": "云褍音乐",
+  "author": {
+    "name": "云褍音乐",
+    "email": "support@cloudmusic.player"
+  },
   "license": "MIT"
 }
