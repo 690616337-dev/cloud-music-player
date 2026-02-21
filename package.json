@@ -36,7 +36,6 @@
       }
     ],
     "mac": {
-      "icon": "assets/icon.icns",
       "category": "public.app-category.music",
       "target": [
         {
@@ -47,18 +46,13 @@
           "target": "zip",
           "arch": ["x64", "arm64"]
         }
-      ],
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "assets/entitlements.mac.plist",
-      "entitlementsInherit": "assets/entitlements.mac.plist"
+      ]
     },
     "win": {
-      "icon": "assets/icon.ico",
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64", "ia32"]
+          "arch": ["x64"]
         },
         {
           "target": "portable",
@@ -70,16 +64,11 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "assets/icon.ico",
-      "uninstallerIcon": "assets/icon.ico",
-      "installerHeaderIcon": "assets/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "云褍音乐播放器",
-      "include": "assets/installer.nsh"
+      "shortcutName": "云褍音乐播放器"
     },
     "linux": {
-      "icon": "assets/icons",
       "category": "AudioVideo",
       "target": [
         {
