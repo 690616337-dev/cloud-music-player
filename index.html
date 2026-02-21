@@ -44,7 +44,7 @@
       <div class="title-bar">
         <div class="title-left">
           <h1>☁️ 云褍音乐播放器</h1>
-          <span class="version">v2.0.8</span>
+          <span class="version">v2.0.9</span>
         </div>
         <div class="window-controls">
           <button class="window-btn minimize" id="minimizeBtn" title="最小化">−</button>
@@ -113,6 +113,7 @@
           <button class="control-btn" id="stopBtn" title="停止">⏹</button>
         </div>
         <div class="loop-modes">
+          <span class="loop-mode-label">循环模式:</span>
           <button class="loop-mode-option active" data-mode="off" title="关闭循环">✕</button>
           <button class="loop-mode-option" data-mode="loop-one" title="单曲循环">🔂</button>
           <button class="loop-mode-option" data-mode="loop-all" title="列表循环">🔁</button>
@@ -131,6 +132,15 @@
       </div>
 
       <div class="player-extras">
+        <div class="volume-section">
+          <span class="volume-icon" id="volumeIcon">🔊</span>
+          <div class="volume-wrapper">
+            <div class="volume-bar" id="volumeBar">
+              <div class="volume-fill" id="volumeFill"></div>
+            </div>
+          </div>
+          <span class="volume-value" id="volumeValue">80%</span>
+        </div>
         <div class="fade-controls">
           <div class="fade-input-group">
             <label>淡入</label>
@@ -142,15 +152,6 @@
             <input type="number" id="fadeOutInput" value="1" min="0" max="5" step="0.5">
             <span>s</span>
           </div>
-        </div>
-        <div class="volume-section">
-          <span class="volume-icon" id="volumeIcon">🔊</span>
-          <div class="volume-wrapper">
-            <div class="volume-bar" id="volumeBar">
-              <div class="volume-fill" id="volumeFill"></div>
-            </div>
-          </div>
-          <span class="volume-value" id="volumeValue">80%</span>
         </div>
       </div>
     </div>
@@ -181,16 +182,17 @@
             <span>自动播放下一首</span>
           </label>
         </div>
-        <div class="setting-row">
-          <label>默认循环模式</label>
-          <select class="setting-select" id="defaultLoopMode">
-            <option value="off">关闭循环</option>
-            <option value="loop-one">单曲循环</option>
-            <option value="loop-all">列表循环</option>
-            <option value="shuffle">随机播放</option>
-            <option value="order">顺序播放</option>
-          </select>
+      </div>
+
+      <div class="setting-group">
+        <label class="setting-label">均衡器预设</label>
+        <div class="eq-presets">
+          <button class="eq-preset-btn active" data-preset="normal" title="标准">标准</button>
+          <button class="eq-preset-btn" data-preset="bass" title="重低音">重低音</button>
+          <button class="eq-preset-btn" data-preset="vocal" title="人声">人声</button>
+          <button class="eq-preset-btn" data-preset="treble" title="高音增强">高音增强</button>
         </div>
+        <div class="eq-info" id="eqInfo">标准模式 - 平衡的频率响应</div>
       </div>
 
       <div class="setting-group">

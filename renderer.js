@@ -262,15 +262,15 @@ class CloudMusicPlayer {
     this.dom.importBtn?.addEventListener('click', () => this.importData());
     this.dom.initAppBtn?.addEventListener('click', () => this.initializeApp());
     this.dom.autoPlayCheck?.addEventListener('change', () => this.saveSettings());
-    this.dom.defaultLoopMode?.addEventListener('change', () => {
-      this.state.playMode = this.dom.defaultLoopMode.value;
-      this.updateLoopButton();
-      this.saveSettings();
-    });
     
     // 主题切换
     document.querySelectorAll('.theme-option').forEach(el => {
       el.addEventListener('click', () => this.setTheme(el.dataset.theme));
+    });
+    
+    // EQ预设
+    document.querySelectorAll('.eq-preset-btn').forEach(el => {
+      el.addEventListener('click', () => this.setEQPreset(el.dataset.preset));
     });
     
     // TTS面板
@@ -337,10 +337,17 @@ class CloudMusicPlayer {
       e.preventDefault();
       e.stopPropagation();
       
-      // 检查是否是文件夹拖拽（从侧边栏拖拽文件夹）
-      const draggedFolderId = e.dataTransfer.getData('text/plain');
-      if (draggedFolderId && this.state.folders.find(f => f.id === draggedFolderId)) {
-        return; // 文件夹拖拽，不显示上传区域
+      // 检查是否是内部拖拽（文件夹或音乐排序）
+      const draggedData = e.dataTransfer.getData('text/plain');
+      if (draggedData) {
+        // 检查是否是文件夹ID
+        const isFolderDrag = this.state.folders.find(f => f.id === draggedData);
+        // 检查是否是音乐ID（在当前文件夹中）
+        const isTrackDrag = this.state.currentFolder?.tracks.find(t => t.id === draggedData);
+        
+        if (isFolderDrag || isTrackDrag) {
+          return; // 内部拖拽，不显示上传区域
+        }
       }
       
       if (this.dragTimer) clearTimeout(this.dragTimer);
@@ -375,10 +382,17 @@ class CloudMusicPlayer {
       if (this.dragTimer) clearTimeout(this.dragTimer);
       this.dom.dropZone?.classList.remove('active');
       
-      // 检查是否是文件夹拖拽（从侧边栏拖拽文件夹）
-      const draggedFolderId = e.dataTransfer.getData('text/plain');
-      if (draggedFolderId && this.state.folders.find(f => f.id === draggedFolderId)) {
-        return; // 文件夹拖拽，不处理上传
+      // 检查是否是内部拖拽（文件夹排序或音乐排序）
+      const draggedData = e.dataTransfer.getData('text/plain');
+      if (draggedData) {
+        // 检查是否是文件夹ID
+        const isFolderDrag = this.state.folders.find(f => f.id === draggedData);
+        // 检查是否是音乐ID
+        const isTrackDrag = this.state.currentFolder?.tracks.find(t => t.id === draggedData);
+        
+        if (isFolderDrag || isTrackDrag) {
+          return; // 内部拖拽，不处理文件上传
+        }
       }
       
       if (!this.state.currentFolder) {
@@ -423,13 +437,14 @@ class CloudMusicPlayer {
         this.state.volume = settings.volume || 0.8;
         this.state.viewMode = settings.viewMode || 'grid';
         this.state.theme = settings.theme || 'cyan';
+        this.state.eqPreset = settings.eqPreset || 'normal';
         
         // 应用设置到UI
         this.dom.fadeInInput.value = this.state.fadeInDuration;
         this.dom.fadeOutInput.value = this.state.fadeOutDuration;
-        this.dom.defaultLoopMode.value = this.state.playMode;
         this.updateVolumeUI();
         this.setTheme(this.state.theme, false);
+        this.setEQPresetUI(this.state.eqPreset);
       }
       
       if (!savedFolders) {
@@ -534,7 +549,8 @@ class CloudMusicPlayer {
       fadeOutDuration: this.state.fadeOutDuration,
       volume: this.state.volume,
       viewMode: this.state.viewMode,
-      theme: this.state.theme
+      theme: this.state.theme,
+      eqPreset: this.state.eqPreset
     };
     localStorage.setItem('cloudMusicSettings', JSON.stringify(settings));
   }
@@ -877,10 +893,6 @@ class CloudMusicPlayer {
         
         el.innerHTML = `
           <div class="music-number-badge">${index + 1}</div>
-          <div class="music-cover">
-            🎵
-            <div class="play-overlay">${isPlaying ? '⏸' : '▶'}</div>
-          </div>
           <div class="music-card-content">
             <div class="music-card-title">${this.escapeHtml(track.name)} ${isTTS ? '<span class="voice-tag">TTS</span>' : ''}</div>
             <div class="music-card-meta">
@@ -1661,6 +1673,26 @@ class CloudMusicPlayer {
     this.dom.settingsPanel?.classList.toggle('open');
   }
 
+  setEQPresetUI(preset) {
+    // 更新按钮状态
+    document.querySelectorAll('.eq-preset-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.preset === preset);
+    });
+    
+    // 更新信息文本
+    const eqInfo = document.getElementById('eqInfo');
+    const eqPresets = {
+      normal: { name: '标准模式', desc: '平衡的频率响应，适合大多数音乐类型' },
+      bass: { name: '重低音', desc: '增强低频，适合电子、嘻哈音乐' },
+      vocal: { name: '人声', desc: '突出中频人声，适合流行、民谣' },
+      treble: { name: '高音增强', desc: '提升高频，适合古典、爵士' }
+    };
+    
+    if (eqInfo && eqPresets[preset]) {
+      eqInfo.textContent = `${eqPresets[preset].name} - ${eqPresets[preset].desc}`;
+    }
+  }
+
   setTheme(theme, save = true) {
     const colors = {
       cyan: '#00d4ff',
@@ -1678,6 +1710,85 @@ class CloudMusicPlayer {
       });
       
       if (save) this.saveSettings();
+    }
+  }
+
+  setEQPreset(preset) {
+    const eqInfo = document.getElementById('eqInfo');
+    const eqPresets = {
+      normal: { name: '标准模式', desc: '平衡的频率响应，适合大多数音乐类型' },
+      bass: { name: '重低音', desc: '增强低频，适合电子、嘻哈音乐' },
+      vocal: { name: '人声', desc: '突出中频人声，适合流行、民谣' },
+      treble: { name: '高音增强', desc: '提升高频，适合古典、爵士' }
+    };
+    
+    // 更新按钮状态
+    document.querySelectorAll('.eq-preset-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.preset === preset);
+    });
+    
+    // 更新信息文本
+    if (eqInfo && eqPresets[preset]) {
+      eqInfo.textContent = `${eqPresets[preset].name} - ${eqPresets[preset].desc}`;
+    }
+    
+    // 保存设置
+    this.state.eqPreset = preset;
+    this.saveSettings();
+    
+    // 应用EQ到音频（如果正在播放）
+    this.applyEQToAudio(preset);
+    
+    this.showToast(`🎵 EQ已切换: ${eqPresets[preset].name}`);
+  }
+
+  applyEQToAudio(preset) {
+    if (!this.audioContext) return;
+    
+    // 如果已有EQ节点，先断开
+    if (this.eqFilters) {
+      this.eqFilters.forEach(filter => {
+        try {
+          filter.disconnect();
+        } catch (e) {}
+      });
+    }
+    
+    // EQ频率配置
+    const eqConfigs = {
+      normal: [0, 0, 0, 0, 0],
+      bass: [6, 3, 0, -2, -3],
+      vocal: [-2, 0, 4, 2, -1],
+      treble: [-3, -2, 0, 3, 6]
+    };
+    
+    const frequencies = [60, 250, 1000, 4000, 16000];
+    const gains = eqConfigs[preset] || eqConfigs.normal;
+    
+    this.eqFilters = [];
+    
+    // 创建滤波器链
+    let lastNode = this.gainNode;
+    
+    frequencies.forEach((freq, index) => {
+      const filter = this.audioContext.createBiquadFilter();
+      filter.type = 'peaking';
+      filter.frequency.value = freq;
+      filter.Q.value = 1;
+      filter.gain.value = gains[index];
+      
+      if (lastNode) {
+        lastNode.disconnect();
+        lastNode.connect(filter);
+      }
+      
+      this.eqFilters.push(filter);
+      lastNode = filter;
+    });
+    
+    // 连接到分析器和输出
+    if (lastNode) {
+      lastNode.connect(this.analyser);
     }
   }
 
@@ -1708,7 +1819,8 @@ class CloudMusicPlayer {
         fadeOutDuration: this.state.fadeOutDuration,
         volume: this.state.volume,
         viewMode: this.state.viewMode,
-        theme: this.state.theme
+        theme: this.state.theme,
+        eqPreset: this.state.eqPreset
       }
     };
     
@@ -1792,8 +1904,8 @@ class CloudMusicPlayer {
         this.setTheme(this.state.theme, false);
         this.dom.fadeInInput.value = this.state.fadeInDuration;
         this.dom.fadeOutInput.value = this.state.fadeOutDuration;
-        this.dom.defaultLoopMode.value = this.state.playMode;
         this.updateVolumeUI();
+        this.setEQPresetUI(this.state.eqPreset || 'normal');
       }
       
       this.state.playedTracks.clear();

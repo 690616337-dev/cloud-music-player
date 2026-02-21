@@ -1,6 +1,6 @@
 {
   "name": "cloud-music-player",
-  "version": "2.0.8",
+  "version": "2.0.9",
   "description": "云褍音乐播放器 - 专业本地音乐管理",
   "main": "main.js",
   "scripts": {
