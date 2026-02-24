@@ -6,6 +6,20 @@
  */
 
 // ========== 常量定义 ==========
+const CONFIG = {
+  MAX_FOLDERS: 50,
+  DEFAULT_FADE_DURATION: 1.0,
+  DEFAULT_VOLUME: 0.8,
+  FADE_STEPS: 20,
+  VISUALIZER_BAR_COUNT: 60,
+  VISUALIZER_FFT_SIZE: 256,
+  SEARCH_DEBOUNCE_MS: 300,
+  FILE_BATCH_SIZE: 5,
+  AUDIO_UNLOCK_TIMEOUT_MS: 5000,
+  BLOB_URL_CLEANUP_DELAY_MS: 1000,
+  TOAST_DURATION_MS: 3000
+};
+
 const EQ_PRESETS = {
   normal: { name: '标准模式', desc: '平衡的频率响应，适合大多数音乐类型', gains: [0, 0, 0, 0, 0] },
   bass: { name: '重低音', desc: '增强低频，适合电子、嘻哈音乐', gains: [6, 3, 0, -2, -3] },
@@ -14,6 +28,21 @@ const EQ_PRESETS = {
 };
 
 const EQ_FREQUENCIES = [60, 250, 1000, 4000, 16000];
+
+const PLAY_MODE_NAMES = {
+  'off': '关闭循环',
+  'loop-one': '单曲循环',
+  'loop-all': '列表循环',
+  'shuffle': '随机播放',
+  'order': '顺序播放'
+};
+
+const THEME_COLORS = {
+  cyan: '#00d4ff',
+  purple: '#9c27b0',
+  orange: '#ff9800',
+  green: '#4caf50'
+};
 
 class CloudMusicPlayer {
   constructor() {
@@ -24,9 +53,9 @@ class CloudMusicPlayer {
       isPlaying: false,
       playMode: 'off', // off, loop-one, loop-all, shuffle, order
       fadeEnabled: true,
-      fadeInDuration: 1.0,
-      fadeOutDuration: 1.0,
-      volume: 0.8,
+      fadeInDuration: CONFIG.DEFAULT_FADE_DURATION,
+      fadeOutDuration: CONFIG.DEFAULT_FADE_DURATION,
+      volume: CONFIG.DEFAULT_VOLUME,
       viewMode: 'grid', // grid, list
       playedTracks: new Set(),
       missingFiles: new Set(),
@@ -48,6 +77,7 @@ class CloudMusicPlayer {
     this.eventListeners = [];
     this.intervals = [];
     this.timeouts = [];
+    this.tempAudioElements = []; // 追踪临时音频元素
     
     // 防抖定时器
     this.searchDebounceTimer = null;
@@ -55,6 +85,7 @@ class CloudMusicPlayer {
     // 竞态条件控制
     this.fadeOutInProgress = false;
     this.pendingTrackId = null;
+    this.fadeIntervalId = null; // 追踪fadeOutAndPlay的interval
     
     this.dom = {};
     this.ttsFolderName = '电子主持人';
@@ -76,9 +107,30 @@ class CloudMusicPlayer {
   // ========== 资源清理工具方法 ==========
   
   /**
-   * 注册Blob URL以便后续清理
+   * 注册临时音频元素以便后续清理
    */
-  registerBlobUrl(url) {
+  registerTempAudio(audio) {
+    if (audio instanceof HTMLAudioElement) {
+      this.tempAudioElements.push(audio);
+    }
+    return audio;
+  }
+  
+  /**
+   * 清理临时音频元素
+   */
+  cleanupTempAudioElements() {
+    this.tempAudioElements.forEach(audio => {
+      try {
+        audio.pause();
+        audio.src = '';
+        audio.load();
+      } catch (e) {
+        // 忽略清理错误
+      }
+    });
+    this.tempAudioElements = [];
+  }
     if (url && url.startsWith('blob:')) {
       this.blobUrls.add(url);
     }
@@ -193,6 +245,49 @@ class CloudMusicPlayer {
     this.cleanupTimers();
     this.removeAllEventListeners();
     this.cleanupAllBlobUrls();
+    this.cleanupTempAudioElements();
+  }
+
+  // ========== 输入验证工具方法 ==========
+  
+  /**
+   * 验证字符串输入
+   */
+  validateString(value, defaultValue = '') {
+    if (typeof value === 'string') return value;
+    if (value === null || value === undefined) return defaultValue;
+    return String(value);
+  }
+  
+  /**
+   * 验证数字输入
+   */
+  validateNumber(value, defaultValue = 0, min = -Infinity, max = Infinity) {
+    const num = Number(value);
+    if (isNaN(num)) return defaultValue;
+    return Math.max(min, Math.min(max, num));
+  }
+  
+  /**
+   * 验证ID格式
+   */
+  validateId(id) {
+    if (typeof id !== 'string') return null;
+    if (!id.trim()) return null;
+    return id;
+  }
+  
+  /**
+   * 安全访问DOM元素
+   */
+  safeDomAccess(element, callback) {
+    if (!element) return null;
+    try {
+      return callback(element);
+    } catch (e) {
+      console.warn('DOM操作失败:', e);
+      return null;
+    }
   }
 
   initDOM() {
@@ -305,7 +400,7 @@ class CloudMusicPlayer {
       
       const source = this.audioContext.createMediaElementSource(this.audio);
       this.analyser = this.audioContext.createAnalyser();
-      this.analyser.fftSize = 256;
+      this.analyser.fftSize = CONFIG.VISUALIZER_FFT_SIZE;
       this.analyser.smoothingTimeConstant = 0.8;
       
       this.gainNode = this.audioContext.createGain();
@@ -319,8 +414,12 @@ class CloudMusicPlayer {
       
       // 音频解锁
       const unlockAudio = async () => {
-        if (this.audioContext && this.audioContext.state === 'suspended') {
-          await this.audioContext.resume();
+        if (this.audioContext?.state === 'suspended') {
+          try {
+            await this.audioContext.resume();
+          } catch (e) {
+            console.warn('音频解锁失败:', e);
+          }
         }
         this.state.isAudioUnlocked = true;
         document.removeEventListener('click', unlockAudio);
@@ -626,26 +725,37 @@ class CloudMusicPlayer {
   // ========== 数据管理 ==========
   async loadData() {
     try {
-      const savedFolders = localStorage.getItem('cloudMusicFolders');
-      const savedSettings = localStorage.getItem('cloudMusicSettings');
+      let savedFolders = null;
+      let savedSettings = null;
+      
+      try {
+        savedFolders = localStorage.getItem('cloudMusicFolders');
+        savedSettings = localStorage.getItem('cloudMusicSettings');
+      } catch (storageError) {
+        console.warn('localStorage读取失败:', storageError);
+      }
       
       if (savedSettings) {
-        const settings = JSON.parse(savedSettings);
-        this.state.playMode = settings.playMode || 'loop-one';
-        this.state.fadeEnabled = settings.fadeEnabled !== false;
-        this.state.fadeInDuration = settings.fadeInDuration || 1.0;
-        this.state.fadeOutDuration = settings.fadeOutDuration || 1.0;
-        this.state.volume = settings.volume || 0.8;
-        this.state.viewMode = settings.viewMode || 'grid';
-        this.state.theme = settings.theme || 'cyan';
-        this.state.eqPreset = settings.eqPreset || 'normal';
-        
-        // 应用设置到UI
-        if (this.dom.fadeInInput) this.dom.fadeInInput.value = this.state.fadeInDuration;
-        if (this.dom.fadeOutInput) this.dom.fadeOutInput.value = this.state.fadeOutDuration;
-        this.updateVolumeUI();
-        this.setTheme(this.state.theme, false);
-        this.setEQPresetUI(this.state.eqPreset);
+        try {
+          const settings = JSON.parse(savedSettings);
+          this.state.playMode = settings.playMode || 'loop-one';
+          this.state.fadeEnabled = settings.fadeEnabled !== false;
+          this.state.fadeInDuration = this.validateNumber(settings.fadeInDuration, CONFIG.DEFAULT_FADE_DURATION, 0, 10);
+          this.state.fadeOutDuration = this.validateNumber(settings.fadeOutDuration, CONFIG.DEFAULT_FADE_DURATION, 0, 10);
+          this.state.volume = this.validateNumber(settings.volume, CONFIG.DEFAULT_VOLUME, 0, 1);
+          this.state.viewMode = settings.viewMode === 'list' ? 'list' : 'grid';
+          this.state.theme = settings.theme || 'cyan';
+          this.state.eqPreset = settings.eqPreset || 'normal';
+          
+          // 应用设置到UI
+          if (this.dom.fadeInInput) this.dom.fadeInInput.value = this.state.fadeInDuration;
+          if (this.dom.fadeOutInput) this.dom.fadeOutInput.value = this.state.fadeOutDuration;
+          this.updateVolumeUI();
+          this.setTheme(this.state.theme, false);
+          this.setEQPresetUI(this.state.eqPreset);
+        } catch (parseError) {
+          console.warn('设置解析失败:', parseError);
+        }
       }
       
       if (!savedFolders) {
@@ -670,7 +780,13 @@ class CloudMusicPlayer {
         
         this.saveData();
       } else {
-        this.state.folders = JSON.parse(savedFolders);
+        try {
+          this.state.folders = JSON.parse(savedFolders);
+        } catch (parseError) {
+          console.warn('文件夹数据解析失败:', parseError);
+          this.initializeDefault();
+          return;
+        }
         
         // 确保有电子主持人文件夹
         if (!this.state.folders.find(f => f.name === this.ttsFolderName)) {
