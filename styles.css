@@ -436,35 +436,48 @@ body {
   position: absolute;
   top: 12px;
   right: 12px;
-  width: 28px;
-  height: 28px;
-  background: var(--primary);
+  width: 26px;
+  height: 26px;
+  background: rgba(0, 212, 255, 0.15);
+  border: 1px solid rgba(0, 212, 255, 0.3);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: bold;
-  color: #000;
+  color: var(--primary);
   z-index: 10;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: var(--transition);
+}
+
+.music-card:hover .music-number-badge {
+  background: rgba(0, 212, 255, 0.25);
+  border-color: rgba(0, 212, 255, 0.5);
+}
+
+.music-card.playing .music-number-badge {
+  background: var(--primary);
+  color: #000;
+  border-color: var(--primary);
 }
 
 .music-card-content {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-top: 8px;
+  gap: 10px;
+  padding-top: 4px;
 }
 
 .music-card-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-main);
-  padding-right: 40px; /* 为数字徽章留出空间 */
+  padding-right: 36px;
+  line-height: 1.4;
 }
 
 .music-card-meta {

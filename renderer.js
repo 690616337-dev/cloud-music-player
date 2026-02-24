@@ -641,12 +641,14 @@ class CloudMusicPlayer {
       
       // 拖拽事件
       div.addEventListener('dragstart', (e) => {
+        this.isInternalDrag = true;
         div.classList.add('dragging');
         e.dataTransfer.setData('text/plain', folder.id);
         e.dataTransfer.effectAllowed = 'move';
       });
       
       div.addEventListener('dragend', () => {
+        this.isInternalDrag = false;
         div.classList.remove('dragging');
         document.querySelectorAll('.folder-item').forEach(el => el.classList.remove('drag-over'));
       });
@@ -975,11 +977,13 @@ class CloudMusicPlayer {
       // 拖拽排序
       el.draggable = true;
       el.addEventListener('dragstart', (e) => {
+        this.isInternalDrag = true;
         el.classList.add('dragging');
         e.dataTransfer.setData('text/plain', track.id);
       });
       
       el.addEventListener('dragend', () => {
+        this.isInternalDrag = false;
         el.classList.remove('dragging');
       });
       
