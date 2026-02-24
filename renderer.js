@@ -434,6 +434,24 @@ class CloudMusicPlayer {
     }
   }
 
+  // ========== 防抖工具方法 ==========
+  
+  /**
+   * 防抖函数
+   * @param {Function} fn - 要执行的函数
+   * @param {number} delay - 延迟毫秒数
+   * @returns {Function}
+   */
+  debounce(fn, delay) {
+    let timer = null;
+    return (...args) => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        fn.apply(this, args);
+      }, delay);
+    };
+  }
+
   initEventListeners() {
     // 侧边栏按钮
     this.addEventListener(this.dom.addFolderBtn, 'click', () => this.addFolder());
@@ -450,14 +468,13 @@ class CloudMusicPlayer {
     this.addEventListener(this.dom.addMusicBtn, 'click', () => this.importFiles());
     this.addEventListener(this.dom.settingsBtn, 'click', () => this.toggleSettings());
     
-    // 搜索框防抖处理
+    // 搜索框防抖处理 - 使用debounce函数
+    const debouncedRender = this.debounce(() => {
+      this.renderTracks();
+    }, CONFIG.SEARCH_DEBOUNCE_MS);
+    
     this.addEventListener(this.dom.searchInput, 'input', () => {
-      if (this.searchDebounceTimer) {
-        clearTimeout(this.searchDebounceTimer);
-      }
-      this.searchDebounceTimer = setTimeout(() => {
-        this.renderTracks();
-      }, 300);
+      debouncedRender();
     });
     
     // 播放控制
@@ -568,6 +585,16 @@ class CloudMusicPlayer {
     // 页面卸载时清理资源
     this.addEventListener(window, 'beforeunload', () => {
       this.destroy();
+    });
+    
+    // 页面可见性变化时暂停/恢复音频上下文
+    this.addEventListener(document, 'visibilitychange', () => {
+      if (document.hidden) {
+        // 页面隐藏时可以选择暂停可视化以节省资源
+        if (!this.state.isPlaying) {
+          this.stopVisualizer();
+        }
+      }
     });
   }
 
@@ -854,22 +881,28 @@ class CloudMusicPlayer {
     } catch (e) {
       if (e.name === 'QuotaExceededError') {
         this.showToast('存储空间已满', 'error');
+      } else {
+        console.warn('保存数据失败:', e);
       }
     }
   }
 
   saveSettings() {
-    const settings = {
-      playMode: this.state.playMode,
-      fadeEnabled: this.state.fadeEnabled,
-      fadeInDuration: this.state.fadeInDuration,
-      fadeOutDuration: this.state.fadeOutDuration,
-      volume: this.state.volume,
-      viewMode: this.state.viewMode,
-      theme: this.state.theme,
-      eqPreset: this.state.eqPreset
-    };
-    localStorage.setItem('cloudMusicSettings', JSON.stringify(settings));
+    try {
+      const settings = {
+        playMode: this.state.playMode,
+        fadeEnabled: this.state.fadeEnabled,
+        fadeInDuration: this.state.fadeInDuration,
+        fadeOutDuration: this.state.fadeOutDuration,
+        volume: this.state.volume,
+        viewMode: this.state.viewMode,
+        theme: this.state.theme,
+        eqPreset: this.state.eqPreset
+      };
+      localStorage.setItem('cloudMusicSettings', JSON.stringify(settings));
+    } catch (e) {
+      console.warn('保存设置失败:', e);
+    }
   }
 
   generateId() {
@@ -986,8 +1019,8 @@ class CloudMusicPlayer {
   }
 
   addFolder() {
-    if (this.state.folders.length >= 50) {
-      this.showToast('最多50个分类', 'error');
+    if (this.state.folders.length >= CONFIG.MAX_FOLDERS) {
+      this.showToast(`最多${CONFIG.MAX_FOLDERS}个分类`, 'error');
       return;
     }
     
@@ -1007,7 +1040,10 @@ class CloudMusicPlayer {
   }
 
   selectFolder(id) {
-    this.state.currentFolder = this.state.folders.find(f => f.id === id);
+    const validId = this.validateId(id);
+    if (!validId) return;
+    
+    this.state.currentFolder = this.state.folders.find(f => f.id === validId);
     if (this.dom.currentFolderName) {
       this.dom.currentFolderName.textContent = this.state.currentFolder?.name || '';
     }
@@ -1016,7 +1052,10 @@ class CloudMusicPlayer {
   }
 
   renameFolder(id) {
-    const folder = this.state.folders.find(f => f.id === id);
+    const validId = this.validateId(id);
+    if (!validId) return;
+    
+    const folder = this.state.folders.find(f => f.id === validId);
     if (!folder) return;
     
     if (folder.name === this.ttsFolderName) {
@@ -1025,25 +1064,29 @@ class CloudMusicPlayer {
     }
     
     this.openRenameModal('重命名分类', folder.name, (newName) => {
-      if (!newName || newName === folder.name) return;
+      const validName = this.validateString(newName).trim();
+      if (!validName || validName === folder.name) return;
       
-      if (this.state.folders.some(f => f.id !== id && f.name === newName)) {
+      if (this.state.folders.some(f => f.id !== validId && f.name === validName)) {
         this.showToast('该名称已存在', 'error');
         return;
       }
       
-      folder.name = newName;
+      folder.name = validName;
       this.saveData();
       this.renderFolders();
-      if (this.state.currentFolder?.id === id) {
-        this.dom.currentFolderName.textContent = newName;
+      if (this.state.currentFolder?.id === validId) {
+        this.dom.currentFolderName.textContent = validName;
       }
       this.showToast('✅ 重命名成功');
     });
   }
 
   deleteFolder(id) {
-    const folder = this.state.folders.find(f => f.id === id);
+    const validId = this.validateId(id);
+    if (!validId) return;
+    
+    const folder = this.state.folders.find(f => f.id === validId);
     if (!folder) return;
     
     if (folder.name === this.ttsFolderName) {
@@ -1060,9 +1103,9 @@ class CloudMusicPlayer {
       }
     });
     
-    this.state.folders = this.state.folders.filter(f => f.id !== id);
+    this.state.folders = this.state.folders.filter(f => f.id !== validId);
     
-    if (this.state.currentFolder?.id === id) {
+    if (this.state.currentFolder?.id === validId) {
       this.state.currentFolder = this.state.folders[0] || null;
       if (this.state.currentFolder) {
         this.selectFolder(this.state.currentFolder.id);
@@ -1083,13 +1126,13 @@ class CloudMusicPlayer {
     }
     
     let added = 0;
-    const batchSize = 5;
+    const batchSize = CONFIG.FILE_BATCH_SIZE;
     
     for (let i = 0; i < files.length; i += batchSize) {
       const batch = files.slice(i, i + batchSize);
       
       await Promise.all(batch.map(async (file) => {
-        if (!file) return;
+        if (!file || !(file instanceof File)) return;
         
         try {
           const name = file.name?.replace(/\.[^/.]+$/, '') || '未命名';
@@ -1111,34 +1154,40 @@ class CloudMusicPlayer {
           };
           
           // 异步获取时长
-          const tempAudio = new Audio();
+          const tempAudio = this.registerTempAudio(new Audio());
           tempAudio.preload = 'metadata';
           
           await new Promise((resolve) => {
-            const onLoaded = () => {
+            let resolved = false;
+            const cleanup = () => {
+              if (resolved) return;
+              resolved = true;
+              tempAudio.onloadedmetadata = null;
+              tempAudio.onerror = null;
+              tempAudio.src = '';
+              // 从追踪列表中移除
+              const index = this.tempAudioElements.indexOf(tempAudio);
+              if (index > -1) {
+                this.tempAudioElements.splice(index, 1);
+              }
+            };
+            
+            tempAudio.onloadedmetadata = () => {
               track.duration = tempAudio.duration || 0;
               cleanup();
               resolve();
             };
-            const onError = () => {
+            tempAudio.onerror = () => {
               cleanup();
               resolve();
             };
-            const cleanup = () => {
-              tempAudio.onloadedmetadata = null;
-              tempAudio.onerror = null;
-              tempAudio.src = '';
-            };
-            
-            tempAudio.onloadedmetadata = onLoaded;
-            tempAudio.onerror = onError;
             tempAudio.src = url;
             
             // 超时处理
             setTimeout(() => {
               cleanup();
               resolve();
-            }, 5000);
+            }, CONFIG.AUDIO_UNLOCK_TIMEOUT_MS);
           });
           
           this.state.currentFolder.tracks.push(track);
@@ -1179,24 +1228,35 @@ class CloudMusicPlayer {
       return;
     }
     
-    const result = await window.electronAPI.selectFiles();
-    if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
-      // 将文件路径转换为File对象
-      const files = [];
-      for (const filePath of result.filePaths) {
-        try {
-          const response = await fetch(`file://${filePath}`);
-          const blob = await response.blob();
-          const fileName = filePath.split('/').pop() || filePath.split('\\').pop();
-          const file = new File([blob], fileName, { type: blob.type });
-          files.push(file);
-        } catch (e) {
-          console.error('读取文件失败:', e);
+    try {
+      const result = await window.electronAPI.selectFiles();
+      if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
+        // 将文件路径转换为File对象
+        const files = [];
+        for (const filePath of result.filePaths) {
+          try {
+            const response = await fetch(`file://${filePath}`);
+            if (!response.ok) {
+              console.warn(`读取文件失败: ${filePath}, 状态: ${response.status}`);
+              continue;
+            }
+            const blob = await response.blob();
+            const fileName = filePath.split('/').pop() || filePath.split('\\').pop();
+            const file = new File([blob], fileName, { type: blob.type });
+            files.push(file);
+          } catch (e) {
+            console.error('读取文件失败:', e);
+          }
+        }
+        if (files.length > 0) {
+          this.processFiles(files);
+        } else {
+          this.showToast('没有成功读取的文件', 'error');
         }
       }
-      if (files.length > 0) {
-        this.processFiles(files);
-      }
+    } catch (e) {
+      console.error('导入文件失败:', e);
+      this.showToast('导入文件失败', 'error');
     }
   }
 
@@ -1354,12 +1414,17 @@ class CloudMusicPlayer {
 
   renameTrack(id) {
     if (!this.state.currentFolder?.tracks) return;
-    const track = this.state.currentFolder.tracks.find(t => t.id === id);
+    
+    const validId = this.validateId(id);
+    if (!validId) return;
+    
+    const track = this.state.currentFolder.tracks.find(t => t.id === validId);
     if (!track) return;
     
     this.openRenameModal('重命名音乐', track.name, (newName) => {
-      if (!newName || newName === track.name) return;
-      track.name = newName;
+      const validName = this.validateString(newName).trim();
+      if (!validName || validName === track.name) return;
+      track.name = validName;
       this.saveData();
       this.renderTracks();
       this.showToast('✅ 重命名成功');
@@ -1368,7 +1433,11 @@ class CloudMusicPlayer {
 
   deleteTrack(id) {
     if (!this.state.currentFolder?.tracks) return;
-    const track = this.state.currentFolder.tracks.find(t => t.id === id);
+    
+    const validId = this.validateId(id);
+    if (!validId) return;
+    
+    const track = this.state.currentFolder.tracks.find(t => t.id === validId);
     if (!track) return;
     
     if (!confirm(`确定删除"${track.name}"？`)) return;
@@ -1377,9 +1446,9 @@ class CloudMusicPlayer {
       this.revokeBlobUrl(track.path);
     }
     
-    this.state.currentFolder.tracks = this.state.currentFolder.tracks.filter(t => t.id !== id);
+    this.state.currentFolder.tracks = this.state.currentFolder.tracks.filter(t => t.id !== validId);
     
-    if (this.state.currentTrack?.id === id) {
+    if (this.state.currentTrack?.id === validId) {
       this.stop();
     }
     
@@ -1391,14 +1460,15 @@ class CloudMusicPlayer {
 
   // ========== 播放控制 ==========
   async playTrack(trackId) {
-    if (!trackId) return;
+    const validId = this.validateId(trackId);
+    if (!validId) return;
     
-    if (this.state.missingFiles.has(trackId)) {
+    if (this.state.missingFiles.has(validId)) {
       this.showToast('⚠️ 文件已丢失，无法播放', 'error');
       return;
     }
     
-    const track = this.state.currentFolder?.tracks.find(t => t.id === trackId);
+    const track = this.state.currentFolder?.tracks.find(t => t.id === validId);
     if (!track) return;
     
     // 如果是TTS
@@ -1407,7 +1477,7 @@ class CloudMusicPlayer {
       return;
     }
     
-    if (this.state.currentTrack?.id === trackId) {
+    if (this.state.currentTrack?.id === validId) {
       this.togglePlay();
       return;
     }
@@ -1450,10 +1520,10 @@ class CloudMusicPlayer {
       this.renderTracks();
       
       // 释放之前的blob URL（延迟释放，避免正在播放的音频被切断）
-      if (previousTrack && previousTrack.path?.startsWith('blob:') && previousTrack.id !== trackId) {
+      if (previousTrack && previousTrack.path?.startsWith('blob:') && previousTrack.id !== validId) {
         setTimeout(() => {
           this.revokeBlobUrl(previousTrack.path);
-        }, 1000);
+        }, CONFIG.BLOB_URL_CLEANUP_DELAY_MS);
       }
       
     } catch (err) {
@@ -1566,7 +1636,7 @@ class CloudMusicPlayer {
     }
     
     const duration = this.state.fadeInDuration * 1000;
-    const steps = 20;
+    const steps = CONFIG.FADE_STEPS;
     const stepTime = duration / steps;
     const volumeStep = this.state.volume / steps;
     let current = 0;
@@ -1590,7 +1660,7 @@ class CloudMusicPlayer {
       }
       
       const duration = this.state.fadeOutDuration * 1000;
-      const steps = 20;
+      const steps = CONFIG.FADE_STEPS;
       const stepTime = duration / steps;
       const startVolume = this.audio?.volume || 0;
       const volumeStep = startVolume / steps;
@@ -1636,34 +1706,43 @@ class CloudMusicPlayer {
 
   fadeOutAndPlay(trackId) {
     // 空值检查
-    if (!trackId) return;
+    const validId = this.validateId(trackId);
+    if (!validId) return;
+    
+    // 清理之前的fade interval
+    if (this.fadeIntervalId) {
+      clearInterval(this.fadeIntervalId);
+      this.fadeIntervalId = null;
+    }
     
     // 竞态条件处理：如果正在淡出，记录待播放的trackId
     if (this.fadeOutInProgress) {
-      this.pendingTrackId = trackId;
+      this.pendingTrackId = validId;
       return;
     }
     
     // 如果没有正在播放或没有gainNode，直接播放
     if (!this.state.isPlaying || !this.gainNode) {
-      this.playTrack(trackId);
+      this.playTrack(validId);
       return;
     }
 
     this.fadeOutInProgress = true;
     this.pendingTrackId = null;
 
-    const fadeOut = parseFloat(this.state.fadeOutDuration) || 1;
+    const fadeOut = parseFloat(this.state.fadeOutDuration) || CONFIG.DEFAULT_FADE_DURATION;
     const currentVol = this.gainNode.gain.value;
-    const steps = 20;
+    const steps = CONFIG.FADE_STEPS;
     const stepTime = (fadeOut * 1000) / steps;
     const stepVol = currentVol / steps;
     let step = 0;
 
-    const fadeInterval = setInterval(() => {
+    this.fadeIntervalId = setInterval(() => {
       step++;
       if (step >= steps) {
-        clearInterval(fadeInterval);
+        clearInterval(this.fadeIntervalId);
+        this.fadeIntervalId = null;
+        
         if (this.gainNode) {
           this.gainNode.gain.value = currentVol;
         }
@@ -1671,10 +1750,10 @@ class CloudMusicPlayer {
         this.fadeOutInProgress = false;
         
         // 检查是否有待播放的track（竞态条件处理）
-        if (this.pendingTrackId && this.pendingTrackId !== trackId) {
+        if (this.pendingTrackId && this.pendingTrackId !== validId) {
           this.playTrack(this.pendingTrackId);
         } else {
-          this.playTrack(trackId);
+          this.playTrack(validId);
         }
         this.pendingTrackId = null;
       } else {
@@ -1683,8 +1762,6 @@ class CloudMusicPlayer {
         }
       }
     }, stepTime);
-    
-    this.intervals.push(fadeInterval);
   }
 
   handleTrackEnded() {
@@ -1732,29 +1809,17 @@ class CloudMusicPlayer {
     this.updateLoopButton();
     this.saveSettings();
     
-    const names = {
-      'off': '关闭循环',
-      'loop-one': '单曲循环',
-      'loop-all': '列表循环',
-      'shuffle': '随机播放',
-      'order': '顺序播放'
-    };
-    this.showToast(`🎵 ${names[this.state.playMode]}`);
+    this.showToast(`🎵 ${PLAY_MODE_NAMES[this.state.playMode]}`);
   }
 
   setPlayMode(mode) {
+    if (!mode || typeof mode !== 'string') return;
+    
     this.state.playMode = mode;
     this.updateLoopButton();
     this.saveSettings();
     
-    const names = {
-      'off': '关闭循环',
-      'loop-one': '单曲循环',
-      'loop-all': '列表循环',
-      'shuffle': '随机播放',
-      'order': '顺序播放'
-    };
-    this.showToast(`🎵 ${names[mode]}`);
+    this.showToast(`🎵 ${PLAY_MODE_NAMES[mode]}`);
   }
 
   updateLoopButton() {
@@ -1765,7 +1830,7 @@ class CloudMusicPlayer {
   }
 
   seek(e) {
-    if (!this.audio?.duration || !this.dom.progressBar) return;
+    if (!this.audio?.duration || !this.dom.progressBar || !e) return;
     const rect = this.dom.progressBar.getBoundingClientRect();
     const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     this.audio.currentTime = percent * this.audio.duration;
@@ -1775,18 +1840,20 @@ class CloudMusicPlayer {
   updateProgress() {
     if (!this.audio?.duration) return;
     const percent = (this.audio.currentTime / this.audio.duration) * 100;
-    if (this.dom.progressFill) {
-      this.dom.progressFill.style.width = `${percent}%`;
-    }
-    if (this.dom.currentTime) {
-      this.dom.currentTime.textContent = this.formatTime(this.audio.currentTime);
-    }
+    
+    this.safeDomAccess(this.dom.progressFill, (el) => {
+      el.style.width = `${percent}%`;
+    });
+    
+    this.safeDomAccess(this.dom.currentTime, (el) => {
+      el.textContent = this.formatTime(this.audio.currentTime);
+    });
     
     // 更新剩余时间
     const remaining = this.audio.duration - this.audio.currentTime;
-    if (this.dom.remainingTime) {
-      this.dom.remainingTime.textContent = `-${this.formatTime(remaining)}`;
-    }
+    this.safeDomAccess(this.dom.remainingTime, (el) => {
+      el.textContent = `-${this.formatTime(remaining)}`;
+    });
   }
 
   updateTimeDisplay() {
@@ -1796,7 +1863,7 @@ class CloudMusicPlayer {
   }
 
   setVolumeFromMouse(e) {
-    if (!this.dom.volumeBar) return;
+    if (!this.dom.volumeBar || !e) return;
     const rect = this.dom.volumeBar.getBoundingClientRect();
     const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     this.state.volume = percent;
@@ -1807,7 +1874,7 @@ class CloudMusicPlayer {
   }
 
   adjustVolume(delta) {
-    const newVol = Math.max(0, Math.min(1, this.state.volume + delta));
+    const newVol = Math.max(0, Math.min(1, (this.state.volume || 0) + delta));
     this.state.volume = newVol;
     if (this.audio) this.audio.volume = newVol;
     if (this.gainNode) this.gainNode.gain.value = newVol;
@@ -1816,22 +1883,25 @@ class CloudMusicPlayer {
   }
 
   updateVolumeUI() {
-    const percent = Math.round(this.state.volume * 100);
-    if (this.dom.volumeFill) {
-      this.dom.volumeFill.style.width = `${percent}%`;
-    }
-    if (this.dom.volumeValue) {
-      this.dom.volumeValue.textContent = `${percent}%`;
-    }
+    const percent = Math.round((this.state.volume || 0) * 100);
+    
+    this.safeDomAccess(this.dom.volumeFill, (el) => {
+      el.style.width = `${percent}%`;
+    });
+    
+    this.safeDomAccess(this.dom.volumeValue, (el) => {
+      el.textContent = `${percent}%`;
+    });
     
     // 音量图标
     let icon = '🔊';
     if (percent === 0) icon = '🔇';
     else if (percent < 30) icon = '🔈';
     else if (percent < 70) icon = '🔉';
-    if (this.dom.volumeIcon) {
-      this.dom.volumeIcon.textContent = icon;
-    }
+    
+    this.safeDomAccess(this.dom.volumeIcon, (el) => {
+      el.textContent = icon;
+    });
   }
 
   // ========== 可视化 ==========
@@ -1864,7 +1934,7 @@ class CloudMusicPlayer {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
-      const barCount = 60;
+      const barCount = CONFIG.VISUALIZER_BAR_COUNT;
       const barWidth = canvas.width / barCount;
       const step = Math.floor(bufferLength / barCount);
       
@@ -2172,23 +2242,19 @@ class CloudMusicPlayer {
   }
 
   setTheme(theme, save = true) {
-    const colors = {
-      cyan: '#00d4ff',
-      purple: '#9c27b0',
-      orange: '#ff9800',
-      green: '#4caf50'
-    };
+    if (!theme || typeof theme !== 'string') return;
     
-    if (colors[theme]) {
-      document.documentElement.style.setProperty('--primary', colors[theme]);
-      this.state.theme = theme;
-      
-      document.querySelectorAll('.theme-option').forEach(el => {
-        el.classList.toggle('active', el.dataset.theme === theme);
-      });
-      
-      if (save) this.saveSettings();
-    }
+    const color = THEME_COLORS[theme];
+    if (!color) return;
+    
+    document.documentElement.style.setProperty('--primary', color);
+    this.state.theme = theme;
+    
+    document.querySelectorAll('.theme-option').forEach(el => {
+      el.classList.toggle('active', el.dataset.theme === theme);
+    });
+    
+    if (save) this.saveSettings();
   }
 
   setEQPreset(preset) {
@@ -2304,24 +2370,29 @@ class CloudMusicPlayer {
   }
 
   async importData() {
-    if (!window.electronAPI) {
-      // 降级方案
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.json';
-      input.onchange = (e) => this.processImportFile(e.target.files?.[0]);
-      input.click();
-      return;
-    }
-    
-    const result = await window.electronAPI.openFile();
-    if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
-      const readResult = await window.electronAPI.readFile(result.filePaths[0]);
-      if (readResult.success) {
-        this.processImportData(readResult.data);
-      } else {
-        this.showToast('❌ 读取文件失败', 'error');
+    try {
+      if (!window.electronAPI) {
+        // 降级方案
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e) => this.processImportFile(e.target.files?.[0]);
+        input.click();
+        return;
       }
+      
+      const result = await window.electronAPI.openFile();
+      if (!result.canceled && result.filePaths?.length > 0) {
+        const readResult = await window.electronAPI.readFile(result.filePaths[0]);
+        if (readResult.success) {
+          this.processImportData(readResult.data);
+        } else {
+          this.showToast('❌ 读取文件失败', 'error');
+        }
+      }
+    } catch (e) {
+      console.error('导入数据失败:', e);
+      this.showToast('❌ 导入失败', 'error');
     }
   }
 
@@ -2397,9 +2468,14 @@ class CloudMusicPlayer {
     
     // 清理资源
     this.cleanupAllBlobUrls();
+    this.cleanupTempAudioElements();
     
-    localStorage.removeItem('cloudMusicFolders');
-    localStorage.removeItem('cloudMusicSettings');
+    try {
+      localStorage.removeItem('cloudMusicFolders');
+      localStorage.removeItem('cloudMusicSettings');
+    } catch (e) {
+      console.warn('清除localStorage失败:', e);
+    }
     
     this.state.folders = [];
     this.state.currentFolder = null;
@@ -2438,26 +2514,26 @@ class CloudMusicPlayer {
 
   // ========== UI更新 ==========
   updatePlayerUI() {
-    if (this.dom.playBtn) {
-      this.dom.playBtn.innerHTML = this.state.isPlaying ? '⏸' : '▶';
-    }
+    this.safeDomAccess(this.dom.playBtn, (el) => {
+      el.innerHTML = this.state.isPlaying ? '⏸' : '▶';
+    });
     
     this.dom.playerCover?.classList.toggle('playing', this.state.isPlaying);
     
     if (this.state.currentTrack) {
-      if (this.dom.currentTrackName) {
-        this.dom.currentTrackName.textContent = this.state.currentTrack.name;
-      }
-      if (this.dom.currentTrackFolder) {
-        this.dom.currentTrackFolder.textContent = this.state.currentFolder?.name || '';
-      }
+      this.safeDomAccess(this.dom.currentTrackName, (el) => {
+        el.textContent = this.state.currentTrack?.name || '未知';
+      });
+      this.safeDomAccess(this.dom.currentTrackFolder, (el) => {
+        el.textContent = this.state.currentFolder?.name || '';
+      });
     } else {
-      if (this.dom.currentTrackName) {
-        this.dom.currentTrackName.textContent = '未播放';
-      }
-      if (this.dom.currentTrackFolder) {
-        this.dom.currentTrackFolder.textContent = '选择音乐开始播放';
-      }
+      this.safeDomAccess(this.dom.currentTrackName, (el) => {
+        el.textContent = '未播放';
+      });
+      this.safeDomAccess(this.dom.currentTrackFolder, (el) => {
+        el.textContent = '选择音乐开始播放';
+      });
     }
   }
 
@@ -2467,8 +2543,14 @@ class CloudMusicPlayer {
 
   updateStats() {
     const totalTracks = this.state.folders.reduce((sum, f) => sum + (f.tracks?.length || 0), 0);
-    if (this.dom.folderCount) this.dom.folderCount.textContent = this.state.folders.length;
-    if (this.dom.totalTracks) this.dom.totalTracks.textContent = totalTracks;
+    
+    this.safeDomAccess(this.dom.folderCount, (el) => {
+      el.textContent = this.state.folders?.length || 0;
+    });
+    
+    this.safeDomAccess(this.dom.totalTracks, (el) => {
+      el.textContent = totalTracks;
+    });
   }
 
   render() {
@@ -2480,26 +2562,30 @@ class CloudMusicPlayer {
 
   // ========== 工具函数 ==========
   getCurrentTracks() {
+    const searchValue = this.validateString(this.dom.searchInput?.value).toLowerCase();
     return (this.state.currentFolder?.tracks || [])
-      .filter(t => t && t.name && t.name.toLowerCase().includes((this.dom.searchInput?.value || '').toLowerCase()))
+      .filter(t => t && t.name && t.name.toLowerCase().includes(searchValue))
       .sort((a, b) => (a.order || 0) - (b.order || 0));
   }
 
   showToast(message, type = 'success') {
     if (!this.dom.toast) return;
     
-    this.dom.toast.textContent = message;
+    const validMessage = this.validateString(message);
+    if (!validMessage) return;
+    
+    this.dom.toast.textContent = validMessage;
     this.dom.toast.className = `toast ${type} show`;
     
     setTimeout(() => {
       this.dom.toast?.classList.remove('show');
-    }, 3000);
+    }, CONFIG.TOAST_DURATION_MS);
   }
 
   formatTime(seconds) {
-    if (!seconds || isNaN(seconds)) return '0:00';
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
+    const validSeconds = this.validateNumber(seconds, 0);
+    const m = Math.floor(validSeconds / 60);
+    const s = Math.floor(validSeconds % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
   }
 
@@ -2508,9 +2594,10 @@ class CloudMusicPlayer {
   }
 
   escapeHtml(text) {
-    if (!text) return '';
+    const validText = this.validateString(text);
+    if (!validText) return '';
     const div = document.createElement('div');
-    div.textContent = text;
+    div.textContent = validText;
     return div.innerHTML;
   }
 }
