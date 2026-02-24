@@ -39,6 +39,7 @@
         <div class="sidebar-action-btns">
           <button class="btn btn-text" id="checkValidBtn">⚡ 检查文件</button>
           <button class="btn btn-text" id="cleanInvalidBtn">🧹 清理失效</button>
+          <button class="btn btn-text" id="resetPlayedBtn">🔄 重置状态</button>
         </div>
       </div>
       
@@ -161,6 +162,14 @@
             <input type="number" id="fadeOutInput" value="1" min="0" max="5" step="0.5">
             <span class="fade-unit">s</span>
           </div>
+        </div>
+        
+        <div class="loop-modes">
+          <button class="loop-mode-option active" data-mode="off" title="关闭循环">✕</button>
+          <button class="loop-mode-option" data-mode="loop-one" title="单曲循环">🔂</button>
+          <button class="loop-mode-option" data-mode="loop-all" title="列表循环">🔁</button>
+          <button class="loop-mode-option" data-mode="shuffle" title="随机播放">🔀</button>
+          <button class="loop-mode-option" data-mode="order" title="顺序播放">➡️</button>
         </div>
       </div>
     </div>

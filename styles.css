@@ -86,18 +86,21 @@ body {
 
 .sidebar-action-btns {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .sidebar-action-btns .btn-text {
   flex: 1;
+  min-width: 70px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 8px 6px;
   font-size: 11px;
   transition: var(--transition);
+  white-space: nowrap;
 }
 
 .sidebar-action-btns .btn-text:hover {

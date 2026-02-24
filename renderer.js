@@ -59,6 +59,7 @@ class CloudMusicPlayer {
       ttsBtn: document.getElementById('ttsBtn'),
       checkValidBtn: document.getElementById('checkValidBtn'),
       cleanInvalidBtn: document.getElementById('cleanInvalidBtn'),
+      resetPlayedBtn: document.getElementById('resetPlayedBtn'),
       
       // 主内容
       currentFolderName: document.getElementById('currentFolderName'),
@@ -194,6 +195,7 @@ class CloudMusicPlayer {
     this.dom.ttsBtn?.addEventListener('click', () => this.openTTSPanel());
     this.dom.checkValidBtn?.addEventListener('click', () => this.checkAllFilesValid());
     this.dom.cleanInvalidBtn?.addEventListener('click', () => this.cleanInvalidFiles());
+    this.dom.resetPlayedBtn?.addEventListener('click', () => this.resetPlayedStatus());
     
     // 视图切换
     this.dom.gridViewBtn?.addEventListener('click', () => this.switchView('grid'));
@@ -1104,6 +1106,11 @@ class CloudMusicPlayer {
       await this.audio.play();
       
       this.state.isPlaying = true;
+      
+      // 标记为已播放（只要开始播放就标记，不需要等播放完）
+      this.state.playedTracks.add(track.id);
+      this.saveData();
+      
       this.fadeIn();
       this.startVisualizer();
       this.updatePlayerUI();
