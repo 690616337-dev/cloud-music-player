@@ -333,22 +333,24 @@ class CloudMusicPlayer {
   }
 
   initDragDrop() {
+    // 标记是否正在进行内部拖拽
+    this.isInternalDrag = false;
+    
     const handleDragEnter = (e) => {
       e.preventDefault();
       e.stopPropagation();
       
-      // 检查是否是内部拖拽（文件夹或音乐排序）
-      const draggedData = e.dataTransfer.getData('text/plain');
-      if (draggedData) {
-        // 检查是否是文件夹ID
-        const isFolderDrag = this.state.folders.find(f => f.id === draggedData);
-        // 检查是否是音乐ID（在当前文件夹中）
-        const isTrackDrag = this.state.currentFolder?.tracks.find(t => t.id === draggedData);
-        
-        if (isFolderDrag || isTrackDrag) {
-          return; // 内部拖拽，不显示上传区域
-        }
-      }
+      // 如果是内部拖拽，不显示上传区域
+      if (this.isInternalDrag) return;
+      
+      // 检查拖拽的是否是文件（外部拖拽）
+      // 外部拖拽时 dataTransfer.types 通常包含 'Files'
+      const isExternalFileDrag = e.dataTransfer.types && 
+        (e.dataTransfer.types.includes('Files') || 
+         Array.from(e.dataTransfer.types).some(t => t === 'Files'));
+      
+      // 如果不是文件拖拽，可能是内部拖拽，不处理
+      if (!isExternalFileDrag) return;
       
       if (this.dragTimer) clearTimeout(this.dragTimer);
       this.dragCounter++;
@@ -361,6 +363,8 @@ class CloudMusicPlayer {
     const handleDragLeave = (e) => {
       e.preventDefault();
       e.stopPropagation();
+      
+      if (this.isInternalDrag) return;
       
       this.dragCounter--;
       
@@ -382,36 +386,36 @@ class CloudMusicPlayer {
       if (this.dragTimer) clearTimeout(this.dragTimer);
       this.dom.dropZone?.classList.remove('active');
       
-      // 检查是否是内部拖拽（文件夹排序或音乐排序）
-      const draggedData = e.dataTransfer.getData('text/plain');
-      if (draggedData) {
-        // 检查是否是文件夹ID
-        const isFolderDrag = this.state.folders.find(f => f.id === draggedData);
-        // 检查是否是音乐ID
-        const isTrackDrag = this.state.currentFolder?.tracks.find(t => t.id === draggedData);
-        
-        if (isFolderDrag || isTrackDrag) {
-          return; // 内部拖拽，不处理文件上传
-        }
+      // 如果是内部拖拽，不处理文件上传
+      if (this.isInternalDrag) {
+        this.isInternalDrag = false;
+        return;
       }
+      
+      // 检查是否有文件被拖拽
+      const files = e.dataTransfer.files;
+      if (!files || files.length === 0) return;
       
       if (!this.state.currentFolder) {
         this.showToast('请先选择分类', 'error');
         return;
       }
       
-      const files = Array.from(e.dataTransfer.files).filter(f => 
+      const audioFiles = Array.from(files).filter(f => 
         f.type.startsWith('audio/') || 
         /\.(mp3|wav|flac|aac|ogg|m4a|wma|aiff|mp4)$/i.test(f.name)
       );
       
-      if (files.length === 0) {
+      if (audioFiles.length === 0) {
         this.showToast('请拖拽音频文件', 'error');
         return;
       }
       
-      await this.processFiles(files);
+      await this.processFiles(audioFiles);
     };
+    
+    // 为文件夹列表和音乐容器添加拖拽开始/结束标记
+    this.setupInternalDragHandlers();
     
     document.addEventListener('dragenter', handleDragEnter, false);
     document.addEventListener('dragleave', handleDragLeave, false);
@@ -420,6 +424,34 @@ class CloudMusicPlayer {
       e.stopPropagation();
     }, false);
     document.addEventListener('drop', handleDrop, false);
+  }
+
+  setupInternalDragHandlers() {
+    // 监听内部拖拽开始和结束
+    const foldersList = this.dom.foldersList;
+    const musicContainer = this.dom.musicContainer;
+    
+    if (foldersList) {
+      foldersList.addEventListener('dragstart', (e) => {
+        if (e.target.closest('.folder-item')) {
+          this.isInternalDrag = true;
+        }
+      });
+      foldersList.addEventListener('dragend', (e) => {
+        this.isInternalDrag = false;
+      });
+    }
+    
+    if (musicContainer) {
+      musicContainer.addEventListener('dragstart', (e) => {
+        if (e.target.closest('.music-card') || e.target.closest('.music-list-item')) {
+          this.isInternalDrag = true;
+        }
+      });
+      musicContainer.addEventListener('dragend', (e) => {
+        this.isInternalDrag = false;
+      });
+    }
   }
 
   // ========== 数据管理 ==========
