@@ -5,6 +5,23 @@
  * 整合参考HTML的功能和Electron特性
  */
 class CloudMusicPlayer {
+  // 静态常量定义
+  static EQ_PRESETS = {
+    normal: { name: '标准模式', desc: '平衡的频率响应，适合大多数音乐类型' },
+    bass: { name: '重低音', desc: '增强低频，适合电子、嘻哈音乐' },
+    vocal: { name: '人声', desc: '突出中频人声，适合流行、民谣' },
+    treble: { name: '高音增强', desc: '提升高频，适合古典、爵士' }
+  };
+
+  static CONFIG = {
+    MAX_FOLDERS: 50,
+    BATCH_SIZE: 5,
+    FADE_STEPS: 20,
+    MAX_FADE_DURATION: 5,
+    MIN_FADE_DURATION: 0,
+    SEARCH_DEBOUNCE: 300
+  };
+
   constructor() {
     this.state = {
       folders: [],
@@ -31,9 +48,14 @@ class CloudMusicPlayer {
     this.animationId = null;
     this.dragCounter = 0;
     this.dragTimer = null;
+    this.fadeInterval = null; // 用于fadeOutAndPlay的interval
+    this.searchDebounceTimer = null; // 搜索防抖定时器
     
     this.dom = {};
     this.ttsFolderName = '电子主持人';
+    
+    // 绑定方法以确保this指向正确
+    this.debouncedRenderTracks = this.debounce(this.renderTracks.bind(this), CloudMusicPlayer.CONFIG.SEARCH_DEBOUNCE);
     
     this.init();
   }
@@ -204,7 +226,7 @@ class CloudMusicPlayer {
     // 头部按钮
     this.dom.addMusicBtn?.addEventListener('click', () => this.importFiles());
     this.dom.settingsBtn?.addEventListener('click', () => this.toggleSettings());
-    this.dom.searchInput?.addEventListener('input', () => this.renderTracks());
+    this.dom.searchInput?.addEventListener('input', () => this.debouncedRenderTracks());
     
     // 播放控制
     this.dom.playBtn?.addEventListener('click', () => this.togglePlay());
@@ -1285,6 +1307,12 @@ class CloudMusicPlayer {
   }
 
   fadeOutAndPlay(trackId) {
+    // 清除之前的fade interval，防止竞态条件
+    if (this.fadeInterval) {
+      clearInterval(this.fadeInterval);
+      this.fadeInterval = null;
+    }
+    
     // 淡出当前音乐，然后播放下一首
     if (!this.state.isPlaying || !this.gainNode) {
       this.playTrack(trackId);
@@ -1293,15 +1321,16 @@ class CloudMusicPlayer {
 
     const fadeOut = parseFloat(this.state.fadeOutDuration) || 1;
     const currentVol = this.gainNode.gain.value;
-    const steps = 20;
+    const steps = CloudMusicPlayer.CONFIG.FADE_STEPS;
     const stepTime = (fadeOut * 1000) / steps;
     const stepVol = currentVol / steps;
     let step = 0;
 
-    const fadeInterval = setInterval(() => {
+    this.fadeInterval = setInterval(() => {
       step++;
       if (step >= steps) {
-        clearInterval(fadeInterval);
+        clearInterval(this.fadeInterval);
+        this.fadeInterval = null;
         this.gainNode.gain.value = currentVol;
         this.playTrack(trackId);
       } else {
@@ -1445,6 +1474,12 @@ class CloudMusicPlayer {
   // ========== 可视化 ==========
   startVisualizer() {
     if (!this.analyser || !this.dom.waveformCanvas) return;
+    
+    // 如果已经在运行，先停止
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = null;
+    }
     
     this.dom.waveformContainer?.classList.add('active');
     
@@ -1748,17 +1783,12 @@ class CloudMusicPlayer {
       btn.classList.toggle('active', btn.dataset.preset === preset);
     });
     
-    // 更新信息文本
+    // 使用静态常量更新信息文本
     const eqInfo = document.getElementById('eqInfo');
-    const eqPresets = {
-      normal: { name: '标准模式', desc: '平衡的频率响应，适合大多数音乐类型' },
-      bass: { name: '重低音', desc: '增强低频，适合电子、嘻哈音乐' },
-      vocal: { name: '人声', desc: '突出中频人声，适合流行、民谣' },
-      treble: { name: '高音增强', desc: '提升高频，适合古典、爵士' }
-    };
+    const presetData = CloudMusicPlayer.EQ_PRESETS[preset];
     
-    if (eqInfo && eqPresets[preset]) {
-      eqInfo.textContent = `${eqPresets[preset].name} - ${eqPresets[preset].desc}`;
+    if (eqInfo && presetData) {
+      eqInfo.textContent = `${presetData.name} - ${presetData.desc}`;
     }
   }
 
@@ -1784,12 +1814,9 @@ class CloudMusicPlayer {
 
   setEQPreset(preset) {
     const eqInfo = document.getElementById('eqInfo');
-    const eqPresets = {
-      normal: { name: '标准模式', desc: '平衡的频率响应，适合大多数音乐类型' },
-      bass: { name: '重低音', desc: '增强低频，适合电子、嘻哈音乐' },
-      vocal: { name: '人声', desc: '突出中频人声，适合流行、民谣' },
-      treble: { name: '高音增强', desc: '提升高频，适合古典、爵士' }
-    };
+    
+    // 使用静态常量
+    const presetData = CloudMusicPlayer.EQ_PRESETS[preset];
     
     // 更新按钮状态
     document.querySelectorAll('.eq-preset-btn').forEach(btn => {
@@ -1797,8 +1824,8 @@ class CloudMusicPlayer {
     });
     
     // 更新信息文本
-    if (eqInfo && eqPresets[preset]) {
-      eqInfo.textContent = `${eqPresets[preset].name} - ${eqPresets[preset].desc}`;
+    if (eqInfo && presetData) {
+      eqInfo.textContent = `${presetData.name} - ${presetData.desc}`;
     }
     
     // 保存设置
@@ -1808,7 +1835,7 @@ class CloudMusicPlayer {
     // 应用EQ到音频（如果正在播放）
     this.applyEQToAudio(preset);
     
-    this.showToast(`🎵 EQ已切换: ${eqPresets[preset].name}`);
+    this.showToast(`🎵 EQ已切换: ${presetData?.name || preset}`);
   }
 
   applyEQToAudio(preset) {
@@ -2104,9 +2131,67 @@ class CloudMusicPlayer {
     div.textContent = text;
     return div.innerHTML;
   }
+
+  // 防抖函数
+  debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
+  // 清理所有资源（用于应用关闭前）
+  cleanup() {
+    // 停止音频
+    if (this.audio) {
+      this.audio.pause();
+      this.audio.src = '';
+    }
+    
+    // 停止可视化
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = null;
+    }
+    
+    // 停止淡入淡出
+    if (this.fadeInterval) {
+      clearInterval(this.fadeInterval);
+      this.fadeInterval = null;
+    }
+    
+    // 清理防抖定时器
+    if (this.searchDebounceTimer) {
+      clearTimeout(this.searchDebounceTimer);
+    }
+    
+    // 释放所有blob URL
+    this.state.folders.forEach(folder => {
+      folder.tracks?.forEach(track => {
+        if (track.path?.startsWith('blob:')) {
+          URL.revokeObjectURL(track.path);
+        }
+      });
+    });
+    
+    // 关闭音频上下文
+    if (this.audioContext?.state !== 'closed') {
+      this.audioContext?.close();
+    }
+  }
 }
 
 // 启动应用
 document.addEventListener('DOMContentLoaded', () => {
-  new CloudMusicPlayer();
+  const player = new CloudMusicPlayer();
+  
+  // 页面关闭前清理资源
+  window.addEventListener('beforeunload', () => {
+    player.cleanup();
+  });
 });
