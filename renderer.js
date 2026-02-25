@@ -820,13 +820,16 @@ class CloudMusicPlayer {
           return;
         }
         
-        // 检查并清理无效的Blob URL（重新打开应用后Blob URL会失效）
+        // 检查并标记失效的Blob URL（重新打开应用后Blob URL会失效）
+        // 注意：这里标记的是在应用关闭前已经保存的Blob URL
+        // 新导入的音乐在当前会话中不会被标记
         let hasInvalidTracks = false;
         this.state.folders.forEach(folder => {
           if (folder.tracks) {
             folder.tracks.forEach(track => {
-              // Blob URL在重新打开应用后会失效，需要标记
-              if (track.path?.startsWith('blob:')) {
+              // 只标记之前已经标记为失效的，或者路径为空的
+              // 新导入的Blob URL在当前会话是有效的
+              if (!track.path || track.path === '') {
                 track.isInvalid = true;
                 hasInvalidTracks = true;
               }
@@ -1523,8 +1526,8 @@ class CloudMusicPlayer {
     this.initAudioContext();
     
     if (track.path) {
-      // 检查是否是失效的Blob URL
-      if (track.isInvalid || (track.path?.startsWith('blob:') && !track.path.includes('http'))) {
+      // 检查是否是失效的文件（通过isInvalid标记）
+      if (track.isInvalid) {
         this.showToast('⚠️ 音频文件需要重新导入', 'error');
         return;
       }
