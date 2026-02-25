@@ -1332,9 +1332,11 @@ class CloudMusicPlayer {
         }
         
         el.innerHTML = `
-          <div class="music-number-badge">${index + 1}</div>
           <div class="music-card-content">
-            <div class="music-card-title">${this.escapeHtml(track.name)} ${isTTS ? '<span class="voice-tag">TTS</span>' : ''}</div>
+            <div class="music-card-header">
+              <div class="music-number-badge">${index + 1}</div>
+              <div class="music-card-title">${this.escapeHtml(track.name)} ${isTTS ? '<span class="voice-tag">TTS</span>' : ''}</div>
+            </div>
             <div class="music-card-meta">
               <span class="music-card-duration">${this.formatDuration(track.duration)}</span>
               <span class="music-card-status ${statusClass}">${statusText}</span>
@@ -2201,7 +2203,8 @@ class CloudMusicPlayer {
           continue;
         }
         
-        if (!track.path) {
+        // 检查路径是否无效或标记为失效
+        if (!track.path || track.isInvalid) {
           this.state.missingFiles.add(track.id);
           invalidCount++;
         } else {
