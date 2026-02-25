@@ -1339,10 +1339,10 @@ class CloudMusicPlayer {
               <span class="music-card-duration">${this.formatDuration(track.duration)}</span>
               <span class="music-card-status ${statusClass}">${statusText}</span>
             </div>
-          </div>
-          <div class="music-actions">
-            <button class="icon-btn" data-action="rename" title="重命名">✏️</button>
-            <button class="icon-btn danger" data-action="delete" title="删除">🗑️</button>
+            <div class="music-card-actions">
+              <button class="icon-btn" data-action="rename" title="重命名">✏️</button>
+              <button class="icon-btn danger" data-action="delete" title="删除">🗑️</button>
+            </div>
           </div>
         `;
       } else {

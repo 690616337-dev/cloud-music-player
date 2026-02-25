@@ -479,7 +479,6 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-main);
-  padding-right: 36px;
   line-height: 1.4;
 }
 
@@ -567,6 +566,35 @@ body {
 
 .music-card:hover .music-actions {
   display: flex;
+}
+
+/* 音乐卡片底部操作按钮 */
+.music-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.music-card-actions .icon-btn {
+  flex: 1;
+  padding: 6px;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.music-card-actions .icon-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.music-card-actions .icon-btn.danger:hover {
+  background: rgba(244, 67, 54, 0.2);
+  border-color: var(--danger);
 }
 
 /* 音乐列表项 - 列表视图 */
