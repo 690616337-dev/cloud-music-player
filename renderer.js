@@ -820,6 +820,24 @@ class CloudMusicPlayer {
           return;
         }
         
+        // 检查并清理无效的Blob URL（重新打开应用后Blob URL会失效）
+        let hasInvalidTracks = false;
+        this.state.folders.forEach(folder => {
+          if (folder.tracks) {
+            folder.tracks.forEach(track => {
+              // Blob URL在重新打开应用后会失效，需要标记
+              if (track.path?.startsWith('blob:')) {
+                track.isInvalid = true;
+                hasInvalidTracks = true;
+              }
+            });
+          }
+        });
+        
+        if (hasInvalidTracks) {
+          console.warn('检测到失效的音频文件，需要重新导入');
+        }
+        
         // 确保有电子主持人文件夹
         if (!this.state.folders.find(f => f.name === this.ttsFolderName)) {
           this.state.folders.push({
@@ -1503,6 +1521,11 @@ class CloudMusicPlayer {
     this.initAudioContext();
     
     if (track.path) {
+      // 检查是否是失效的Blob URL
+      if (track.isInvalid || (track.path?.startsWith('blob:') && !track.path.includes('http'))) {
+        this.showToast('⚠️ 音频文件需要重新导入', 'error');
+        return;
+      }
       this.audio.src = track.path;
     } else {
       this.showToast('⚠️ 音频路径无效', 'error');
