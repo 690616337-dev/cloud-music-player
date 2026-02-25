@@ -434,11 +434,11 @@ body {
   color: var(--danger);
 }
 
-/* 序号圆圈样式 - 移到右上角避免重叠 */
+/* 序号圆圈样式 - 移到左上角避免与操作按钮重叠 */
 .music-number-badge {
   position: absolute;
   top: 12px;
-  right: 12px;
+  left: 12px;
   width: 26px;
   height: 26px;
   background: rgba(0, 212, 255, 0.15);
