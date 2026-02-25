@@ -131,6 +131,11 @@ class CloudMusicPlayer {
     });
     this.tempAudioElements = [];
   }
+  
+  /**
+   * 注册Blob URL以便后续清理
+   */
+  registerBlobUrl(url) {
     if (url && url.startsWith('blob:')) {
       this.blobUrls.add(url);
     }
